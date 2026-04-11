@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fallout Quotes · Painel</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── LOGIN ────────────────────────────────────────── -->
+  <div id="login-screen" class="screen">
+    <div class="login-card">
+      <h1 class="logo">Fallout<span class="accent">Quotes</span></h1>
+      <p class="subtitle">Painel de Controle</p>
+      <form id="login-form" autocomplete="on">
+        <div class="field">
+          <label for="password">Senha</label>
+          <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <p class="error-msg hidden" id="login-error"></p>
+        <button type="submit" class="btn btn-primary btn-full">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── PAINEL PRINCIPAL ─────────────────────────────── -->
+  <div id="main-screen" class="screen hidden">
+
+    <header class="topbar">
+      <h1 class="logo">Fallout<span class="accent">Quotes</span></h1>
+      <div class="topbar-actions">
+        <span class="badge" id="pending-badge">0 pendentes</span>
+        <button class="btn btn-icon" id="theme-btn" title="Alternar tema" aria-label="Alternar tema">
+          <span id="theme-icon">◑</span>
+        </button>
+        <button class="btn btn-ghost" id="logout-btn">Sair</button>
+      </div>
+    </header>
+
+    <!-- Tab nav -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="queue">Fila de Posts</button>
+      <button class="tab-btn" data-tab="quotes">Banco de Quotes</button>
+    </nav>
+
+    <!-- ── SEÇÃO: FILA ─────────────────────────────────── -->
+    <main class="content" id="queue-section">
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <h2 class="section-title">Fila de Posts</h2>
+        <button class="btn btn-primary" id="add-btn">+ Novo Post</button>
+      </div>
+
+      <!-- Formulário de Adição -->
+      <div class="card add-form hidden" id="add-form">
+        <h3 class="card-title">Novo Post</h3>
+        <form id="post-form" enctype="multipart/form-data">
+          <div class="form-grid">
+
+            <!-- Upload de imagem -->
+            <div class="field">
+              <label>Imagem <span class="muted">(opcional)</span></label>
+              <div class="upload-zone" id="upload-zone">
+                <input type="file" id="image-input" name="image" accept="image/*" tabindex="-1" />
+                <div class="upload-placeholder" id="upload-placeholder">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                  <span>Clique ou arraste uma imagem</span>
+                  <small>JPG, PNG, GIF · máx. 15 MB</small>
+                </div>
+                <img id="img-preview" class="img-preview hidden" alt="Preview" />
+                <button type="button" class="btn btn-icon remove-img hidden" id="remove-img" title="Remover imagem">✕</button>
+              </div>
+            </div>
+
+            <!-- Campos de texto -->
+            <div class="fields-right">
+              <div class="field">
+                <label for="caption-input">Legenda <span class="muted">(máx. 280 caracteres)</span></label>
+                <textarea id="caption-input" name="caption" placeholder="Escreva a legenda do post…" rows="5" maxlength="280"></textarea>
+                <span class="char-count"><span id="char-count">0</span> / 280</span>
+              </div>
+              <div class="field">
+                <label for="schedule-input">Agendar para</label>
+                <input type="datetime-local" id="schedule-input" name="scheduledAt" />
+              </div>
+              <div class="form-footer">
+                <button type="button" class="btn btn-ghost" id="cancel-btn">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Agendar</button>
+              </div>
+            </div>
+
+          </div>
+        </form>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filters" id="filters">
+        <button class="filter active" data-filter="all">Todos <span class="filter-count" id="count-all">0</span></button>
+        <button class="filter" data-filter="pending">Pendentes <span class="filter-count" id="count-pending">0</span></button>
+        <button class="filter" data-filter="posted">Postados <span class="filter-count" id="count-posted">0</span></button>
+        <button class="filter" data-filter="error">Erros <span class="filter-count" id="count-error">0</span></button>
+      </div>
+
+      <!-- Lista -->
+      <div id="queue-list" class="queue-list"></div>
+
+      <!-- Estado vazio -->
+      <div class="empty-state hidden" id="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+        <p>Nenhum post encontrado.</p>
+        <button class="btn btn-primary" id="empty-add-btn">+ Novo Post</button>
+      </div>
+
+    </main>
+
+    <!-- ── SEÇÃO: QUOTES ──────────────────────────────── -->
+    <main class="content hidden" id="quotes-section">
+
+      <div class="toolbar">
+        <h2 class="section-title">Banco de Quotes <span class="quote-total-badge" id="quote-total-badge"></span></h2>
+        <button class="btn btn-primary" id="quote-add-btn">+ Nova Quote</button>
+      </div>
+
+      <!-- Busca + filtro por game -->
+      <div class="quotes-controls">
+        <input type="text" id="quote-search" placeholder="Buscar quote ou personagem…" class="search-input" />
+        <div class="filters" id="game-filters"></div>
+      </div>
+
+      <!-- Lista de quotes -->
+      <div id="quotes-list" class="quotes-list"></div>
+
+      <!-- Estado vazio -->
+      <div class="empty-state hidden" id="quotes-empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/></svg>
+        <p>Nenhuma quote encontrada.</p>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- ── MODAL DE CONFIRMAÇÃO (delete) ──────────────── -->
+  <div class="modal-backdrop hidden" id="modal-backdrop">
+    <div class="modal">
+      <p class="modal-msg" id="modal-msg">Tem certeza?</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modal-cancel">Cancelar</button>
+        <button class="btn btn-danger" id="modal-confirm">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL DE QUOTE (criar/editar) ──────────────── -->
+  <div class="modal-backdrop hidden" id="quote-modal-backdrop">
+    <div class="modal modal-wide">
+      <h3 class="modal-title" id="quote-modal-title">Nova Quote</h3>
+      <form id="quote-form">
+        <input type="hidden" id="quote-id-input" />
+        <div class="field">
+          <label for="quote-text-input">Quote</label>
+          <textarea id="quote-text-input" name="quote" rows="4" placeholder="Texto da quote…" required></textarea>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="quote-character-input">Personagem</label>
+            <input type="text" id="quote-character-input" name="character" placeholder="Ex: Benny" required />
+          </div>
+          <div class="field">
+            <label for="quote-game-input">Jogo</label>
+            <select id="quote-game-input" name="game" required>
+              <option value="">Selecionar…</option>
+              <option>Fallout</option>
+              <option>Fallout 2</option>
+              <option>Fallout 3</option>
+              <option>Fallout: New Vegas</option>
+              <option>Fallout: New Vegas — Honest Hearts</option>
+              <option>Fallout: New Vegas — Old World Blues</option>
+              <option>Fallout: New Vegas — Dead Money</option>
+              <option>Fallout: New Vegas — Lonesome Road</option>
+              <option>Fallout 4</option>
+              <option>Fallout TV Series (2024)</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="quote-tags-input">Tags <span class="muted">(separadas por vírgula)</span></label>
+          <input type="text" id="quote-tags-input" name="tags" placeholder="iconic, humor, philosophical…" />
+        </div>
+        <div class="form-footer">
+          <button type="button" class="btn btn-ghost" id="quote-modal-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="quote-modal-submit">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── MODAL DE AGENDAMENTO (da quotes) ───────────── -->
+  <div class="modal-backdrop hidden" id="schedule-modal-backdrop">
+    <div class="modal">
+      <h3 class="modal-title">Agendar Quote</h3>
+      <p class="schedule-preview" id="schedule-preview"></p>
+      <div class="field">
+        <label for="schedule-modal-input">Agendar para</label>
+        <input type="datetime-local" id="schedule-modal-input" />
+      </div>
+      <div class="form-footer" style="margin-top:16px">
+        <button class="btn btn-ghost" id="schedule-modal-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="schedule-modal-confirm">Agendar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

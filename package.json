@@ -1,0 +1,21 @@
+{
+  "name": "fallouteveryday-bot",
+  "version": "1.0.0",
+  "description": "Twitter/X bot that posts one Fallout quote per day",
+  "scripts": {
+    "start": "node start.js",
+    "bot": "node src/bot.js",
+    "scheduler": "node src/scheduler.js",
+    "panel": "node panel/server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "multer": "^2.1.1",
+    "node-cron": "^3.0.3",
+    "twitter-api-v2": "^1.17.2",
+    "uuid": "^10.0.0"
+  }
+}
