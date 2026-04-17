@@ -108,6 +108,7 @@ const CHARACTERS = [
   { page: 'EncSecurityDiamondCity.txt',  character: 'Diamond City Security', game: GAMES.FO4 },
   { page: 'Dogmeat.txt',                 character: 'Dogmeat',          game: GAMES.FO4 },
   { page: 'Takahashi.txt',               character: 'Takahashi',        game: GAMES.FO4 },
+  { page: 'CrMisterGutsy.txt',           character: 'Mister Gutsy',     game: GAMES.FO4 },
 ];
 
 // ---------------------------------------------------------------------------

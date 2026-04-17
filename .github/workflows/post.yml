@@ -2,7 +2,9 @@ name: Post Fallout Quote
 
 on:
   schedule:
-    - cron: '0 * * * *'   # todo hora em ponto — muda pra '0 9 * * *' pra 1x/dia
+    - cron: '0 13 * * *'   # ~10h BRT
+    - cron: '0 18 * * *'   # ~15h BRT
+    - cron: '0 23 * * *'   # ~20h BRT
   workflow_dispatch:        # permite rodar manualmente pelo painel do GitHub
 
 jobs:
@@ -22,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Random delay within window
+        run: sleep $((RANDOM % 120))   # dorme 0–119 segundos antes de postar
+
       - name: Post quote
         env:
           X_API_KEY:            ${{ secrets.X_API_KEY }}
@@ -30,10 +35,10 @@ jobs:
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
         run: npm run bot
 
-      - name: Commit updated quotes.json
+      - name: Commit updated state.json
         run: |
           git config user.name  "fallout-bot"
           git config user.email "bot@fallouteveryday"
-          git add data/quotes.json
+          git add data/state.json
           git diff --staged --quiet || git commit -m "chore: mark quote as posted [skip ci]"
           git push

@@ -3,6 +3,7 @@ const fs   = require('fs');
 const path = require('path');
 
 const QUOTES_FILE = path.join(__dirname, '../data/quotes.json');
+const STATE_FILE  = path.join(__dirname, '../data/state.json');
 const MOCK_MODE   = process.env.MOCK_MODE === 'true';
 
 function getClient() {
@@ -16,11 +17,12 @@ function getClient() {
 }
 
 async function postNext() {
-  const data   = JSON.parse(fs.readFileSync(QUOTES_FILE, 'utf8'));
-  const quotes = data.quotes;
+  const data    = JSON.parse(fs.readFileSync(QUOTES_FILE, 'utf8'));
+  const state   = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+  const postedIds = new Set(state.posted.map(p => p.id));
 
-  const unposted = quotes.filter(q => !q.lastPostedAt);
-  const pool     = unposted.length > 0 ? unposted : quotes;
+  const unposted = data.quotes.filter(q => !postedIds.has(q.id));
+  const pool     = unposted.length > 0 ? unposted : data.quotes;
 
   const entry = pool[Math.floor(Math.random() * pool.length)];
   const tweet = entry.quote.toLowerCase();
@@ -42,10 +44,8 @@ async function postNext() {
       console.log(`[bot] Tweet publicado! ID: ${tweetId}`);
     }
 
-    const idx = quotes.findIndex(q => q.id === entry.id);
-    quotes[idx].lastPostedAt = new Date().toISOString();
-    quotes[idx].tweetId      = tweetId;
-    fs.writeFileSync(QUOTES_FILE, JSON.stringify(data, null, 2));
+    state.posted.push({ id: entry.id, tweetId, postedAt: new Date().toISOString() });
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 
     return tweetId;
   } catch (err) {
