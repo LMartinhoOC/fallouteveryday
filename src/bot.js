@@ -15,24 +15,17 @@ function getClient() {
   });
 }
 
-function formatTweet(entry) {
-  return entry.quote;
-}
-
 async function postNext() {
-  const data = JSON.parse(fs.readFileSync(QUOTES_FILE, 'utf8'));
+  const data   = JSON.parse(fs.readFileSync(QUOTES_FILE, 'utf8'));
+  const quotes = data.quotes;
 
-  // Pick the quote with the oldest lastPostedAt (null counts as never posted, so it goes first)
-  const sorted = [...data.quotes].sort((a, b) => {
-    if (a.lastPostedAt === null) return -1;
-    if (b.lastPostedAt === null) return 1;
-    return new Date(a.lastPostedAt) - new Date(b.lastPostedAt);
-  });
+  const unposted = quotes.filter(q => !q.lastPostedAt);
+  const pool     = unposted.length > 0 ? unposted : quotes;
 
-  const entry = sorted[0];
-  const tweet = formatTweet(entry);
+  const entry = pool[Math.floor(Math.random() * pool.length)];
+  const tweet = entry.quote.toLowerCase();
 
-  console.log(`[bot] ${MOCK_MODE ? '[MOCK] ' : ''}Postando ID ${entry.id}: "${entry.quote.slice(0, 60)}…"`);
+  console.log(`[bot] ${MOCK_MODE ? '[MOCK] ' : ''}Postando "${tweet.slice(0, 60).replace(/\n/g, ' ')}…"`);
 
   try {
     let tweetId;
@@ -49,8 +42,9 @@ async function postNext() {
       console.log(`[bot] Tweet publicado! ID: ${tweetId}`);
     }
 
-    const idx = data.quotes.findIndex(q => q.id === entry.id);
-    data.quotes[idx].lastPostedAt = new Date().toISOString();
+    const idx = quotes.findIndex(q => q.id === entry.id);
+    quotes[idx].lastPostedAt = new Date().toISOString();
+    quotes[idx].tweetId      = tweetId;
     fs.writeFileSync(QUOTES_FILE, JSON.stringify(data, null, 2));
 
     return tweetId;

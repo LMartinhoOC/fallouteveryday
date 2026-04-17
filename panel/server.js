@@ -5,6 +5,7 @@ const session  = require('express-session');
 const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
+const bcrypt   = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
 const app         = express();
@@ -67,12 +68,25 @@ app.get('/api/me', (req, res) => {
   res.json({ authenticated: !!req.session.authenticated });
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { password } = req.body;
   if (!process.env.PANEL_PASSWORD) {
     return res.status(500).json({ error: 'PANEL_PASSWORD não configurada no .env' });
   }
-  if (password === process.env.PANEL_PASSWORD) {
+
+  const stored = process.env.PANEL_PASSWORD;
+  let match;
+
+  if (stored.startsWith('$2')) {
+    // Hash bcrypt — comparação segura
+    match = await bcrypt.compare(password, stored);
+  } else {
+    // Texto puro (legado) — avisa no console e faz comparação direta
+    console.warn('[painel] ⚠  PANEL_PASSWORD em texto puro. Gere um hash com:\n  node -e "require(\'bcryptjs\').hash(\'SUA_SENHA\', 10).then(console.log)"');
+    match = password === stored;
+  }
+
+  if (match) {
     req.session.authenticated = true;
     return res.json({ ok: true });
   }
@@ -89,7 +103,7 @@ app.get('/api/queue', requireAuth, (req, res) => {
 });
 
 app.post('/api/queue', requireAuth, upload.single('image'), (req, res) => {
-  const { caption, scheduledAt } = req.body;
+  const { caption, scheduledAt, quoteId } = req.body;
   if (!caption?.trim()) {
     if (req.file) fs.unlinkSync(req.file.path);
     return res.status(400).json({ error: 'Legenda obrigatória.' });
@@ -102,6 +116,7 @@ app.post('/api/queue', requireAuth, upload.single('image'), (req, res) => {
   const data = readQueue();
   const post = {
     id:          uuidv4(),
+    quoteId:     quoteId ? parseInt(quoteId, 10) : null,
     caption:     caption.trim(),
     scheduledAt: new Date(scheduledAt).toISOString(),
     imagePath:   req.file ? req.file.filename : null,

@@ -1,0 +1,39 @@
+name: Post Fallout Quote
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # todo hora em ponto — muda pra '0 9 * * *' pra 1x/dia
+  workflow_dispatch:        # permite rodar manualmente pelo painel do GitHub
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Post quote
+        env:
+          X_API_KEY:            ${{ secrets.X_API_KEY }}
+          X_API_SECRET:         ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN:       ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: npm run bot
+
+      - name: Commit updated quotes.json
+        run: |
+          git config user.name  "fallout-bot"
+          git config user.email "bot@fallouteveryday"
+          git add data/quotes.json
+          git diff --staged --quiet || git commit -m "chore: mark quote as posted [skip ci]"
+          git push

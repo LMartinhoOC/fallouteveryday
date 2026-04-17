@@ -12,7 +12,28 @@
       "WebFetch(domain:www.thegamer.com)",
       "WebFetch(domain:quoteambition.com)",
       "WebFetch(domain:screenrant.com)",
-      "WebFetch(domain:collider.com)"
+      "WebFetch(domain:collider.com)",
+      "WebFetch(domain:www.anquotes.com)",
+      "WebFetch(domain:falloutdialogue.tumblr.com)",
+      "WebFetch(domain:www.imdb.com)",
+      "WebFetch(domain:snugfam.com)",
+      "WebFetch(domain:fallout-archive.fandom.com)",
+      "WebFetch(domain:allthetropes.org)",
+      "Bash(MOCK_MODE=true node src/bot.js)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"https://fallout.fandom.com/api.php?action=parse&page=Codsworth&prop=wikitext&format=json\")",
+      "Bash(curl -s \"https://fallout.fandom.com/api.php?action=parse&page=Raider_\\(Fallout_4\\)&prop=wikitext&format=json\")",
+      "Bash(curl *)",
+      "Bash(python3 *)",
+      "Bash(npm run *)",
+      "Bash(MOCK_MODE=true npm run bot)",
+      "Bash(schtasks *)",
+      "Bash(powershell *)",
+      "Bash(ls D:/Documents/CODE/fallouteveryday/*.md)",
+      "Read(//d D:/Documents/CODE/**)",
+      "Bash(grep -n \"Math.max\" scripts/*.js src/*.js)",
+      "Bash(cd /d \"D:\\\\Documents\\\\CODE\\\\fallouteveryday\")",
+      "Bash(xargs cat *)"
     ]
   }
 }
