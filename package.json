@@ -6,7 +6,8 @@
     "start": "node start.js",
     "bot": "node src/bot.js",
     "scheduler": "node src/scheduler.js",
-    "panel": "node panel/server.js"
+    "panel": "node panel/server.js",
+    "populate": "node scripts/populate-queue.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

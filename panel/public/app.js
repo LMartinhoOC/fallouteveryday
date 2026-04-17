@@ -619,7 +619,7 @@ function openScheduleModal(id) {
   if (!qt) return;
   pendingScheduleQuote = qt;
 
-  const formatted = `"${qt.quote}" — ${qt.character}, ${qt.game}`;
+  const formatted = `"${qt.quote}" — ${qt.character}, ${qt.game}\n\n#Fallout #FalloutQuotes`;
   schedulePreview.textContent = formatted;
 
   const d = new Date();
@@ -645,7 +645,7 @@ scheduleModalConfirm.addEventListener('click', async () => {
   if (!pendingScheduleQuote || !scheduleModalInput.value) return;
 
   const qt = pendingScheduleQuote;
-  const caption = `"${qt.quote}" — ${qt.character}, ${qt.game}`;
+  const caption = `"${qt.quote}" — ${qt.character}, ${qt.game}\n\n#Fallout #FalloutQuotes`;
 
   scheduleModalBackdrop.classList.add('hidden');
   pendingScheduleQuote = null;
@@ -653,6 +653,7 @@ scheduleModalConfirm.addEventListener('click', async () => {
   const formData = new FormData();
   formData.set('caption', caption);
   formData.set('scheduledAt', scheduleModalInput.value);
+  formData.set('quoteId', qt.id.toString());
 
   const res = await fetch('/api/queue', { method: 'POST', body: formData });
   if (res.ok) {
