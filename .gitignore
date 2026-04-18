@@ -2,3 +2,9 @@ node_modules/
 .env
 uploads/*
 !uploads/.gitkeep
+
+# logs
+*.log
+
+# scrape reports
+data/scrape-report-*.json
