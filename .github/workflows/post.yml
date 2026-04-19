@@ -2,10 +2,24 @@ name: Post Fallout Quote
 
 on:
   schedule:
-    - cron: '0 10 * * *'   # ~7h BRT
-    - cron: '0 13 * * *'   # ~10h BRT
-    - cron: '0 18 * * *'   # ~15h BRT
-    - cron: '0 23 * * *'   # ~20h BRT
+    # Overlap Brasil manhã + Europa almoço/tarde
+    - cron: '0 11 * * *'   # 8h BRT / 6h EST / 12h CET
+    - cron: '0 12 * * *'   # 9h BRT / 7h EST / 13h CET
+    - cron: '0 13 * * *'   # 10h BRT / 8h EST / 14h CET
+    - cron: '0 14 * * *'   # 11h BRT / 9h EST / 15h CET
+    - cron: '0 15 * * *'   # 12h BRT / 10h EST / 16h CET
+    - cron: '0 16 * * *'   # 13h BRT / 11h EST / 17h CET
+    # US almoço + Brasil tarde + fim de tarde Europa
+    - cron: '0 17 * * *'   # 14h BRT / 12h EST / 18h CET
+    - cron: '0 18 * * *'   # 15h BRT / 13h EST / 19h CET
+    - cron: '0 19 * * *'   # 16h BRT / 14h EST / 20h CET
+    - cron: '0 20 * * *'   # 17h BRT / 15h EST / 21h CET
+    # US tarde/noite + Brasil noite (prime time dos dois)
+    - cron: '0 21 * * *'   # 18h BRT / 16h EST / 22h CET
+    - cron: '0 22 * * *'   # 19h BRT / 17h EST / 23h CET
+    - cron: '0 23 * * *'   # 20h BRT / 18h EST / 0h CET
+    - cron: '0 0 * * *'    # 21h BRT / 19h EST
+    - cron: '0 1 * * *'    # 22h BRT / 20h EST
   workflow_dispatch:        # permite rodar manualmente pelo painel do GitHub
 
 jobs:
@@ -26,7 +40,7 @@ jobs:
         run: npm ci
 
       - name: Random delay within window
-        run: sleep $((RANDOM % 120))   # dorme 0–119 segundos antes de postar
+        run: sleep $((RANDOM % 5))     # dorme 0–4 segundos antes de postar
 
       - name: Post quote
         env:
