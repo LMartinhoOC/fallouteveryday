@@ -828,6 +828,48 @@ textarea { resize: vertical; min-height: 100px; }
   flex-shrink: 0;
 }
 
+/* ── Load More ───────────────────────────────────────────────────────────── */
+.load-more-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 8px 0 4px;
+}
+
+.load-more-info {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ── Pin Button ──────────────────────────────────────────────────────────── */
+.btn-pin {
+  padding: 5px 11px;
+  font-size: 0.8rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.btn-pin:hover {
+  background: rgba(170, 255, 0, 0.1);
+  border-color: rgba(170, 255, 0, 0.4);
+  color: var(--acid-hover);
+}
+.btn-pin.is-pinned {
+  background: rgba(170, 255, 0, 0.12);
+  border-color: rgba(170, 255, 0, 0.5);
+  color: var(--acid-hover);
+  font-weight: 700;
+}
+[data-theme="dark"] .btn-pin:hover,
+[data-theme="dark"] .btn-pin.is-pinned { color: var(--acid); }
+
+/* ── Edit Button ─────────────────────────────────────────────────────────── */
 .btn-edit {
   padding: 5px 11px;
   font-size: 0.8rem;

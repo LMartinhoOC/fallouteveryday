@@ -103,7 +103,8 @@ app.get('/api/stats', requireAuth, (req, res) => {
   const daysLeft  = postsPerDay > 0 ? Math.ceil(remaining / postsPerDay) : null;
   const yearsLeft = daysLeft ? (daysLeft / 365).toFixed(1) : null;
 
-  res.json({ total, posted, remaining, todayCount, lastPostedAt: lastPost?.postedAt || null, yearsLeft, postsPerDay });
+  const pinned = (state.pinned || []).length;
+  res.json({ total, posted, remaining, todayCount, lastPostedAt: lastPost?.postedAt || null, yearsLeft, postsPerDay, pinned });
 });
 
 // ─── Recent posts ───────────────────────────────────────────────────────────
@@ -166,11 +167,38 @@ app.get('/api/schedule', requireAuth, (req, res) => {
   }
 });
 
+// ─── Pinned list ───────────────────────────────────────────────────────────
+app.get('/api/pinned', requireAuth, (req, res) => {
+  const state = readState();
+  res.json({ pinned: state.pinned || [] });
+});
+
+// ─── Pin (agenda quote para ser postada na próxima execução) ───────────────
+app.post('/api/quotes/:id/pin', requireAuth, (req, res) => {
+  const id    = parseInt(req.params.id, 10);
+  const state = readState();
+  if (!state.pinned) state.pinned = [];
+  if (!state.pinned.includes(id)) state.pinned.push(id);
+  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+  res.json({ ok: true, pinned: state.pinned });
+});
+
+app.delete('/api/quotes/:id/pin', requireAuth, (req, res) => {
+  const id    = parseInt(req.params.id, 10);
+  const state = readState();
+  state.pinned = (state.pinned || []).filter(pid => pid !== id);
+  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+  res.json({ ok: true, pinned: state.pinned });
+});
+
 // ─── Quotes CRUD ───────────────────────────────────────────────────────────
 app.get('/api/quotes', requireAuth, (req, res) => {
   const data   = readQuotes();
   let   quotes = data.quotes;
   const { q, game } = req.query;
+  const limit  = Math.min(parseInt(req.query.limit)  || 50, 100);
+  const offset = Math.max(parseInt(req.query.offset) || 0,  0);
+
   if (game) quotes = quotes.filter(qt => qt.game === game);
   if (q) {
     const lower = q.toLowerCase();
@@ -179,7 +207,9 @@ app.get('/api/quotes', requireAuth, (req, res) => {
       qt.character.toLowerCase().includes(lower)
     );
   }
-  res.json({ quotes, _meta: data._meta });
+
+  const total = quotes.length;
+  res.json({ quotes: quotes.slice(offset, offset + limit), total, offset, limit, _meta: data._meta });
 });
 
 app.post('/api/quotes', requireAuth, (req, res) => {

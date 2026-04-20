@@ -1,9 +1,13 @@
 /* ── Estado ──────────────────────────────────────────────────────────────── */
-let quotes              = [];
-let activeGame          = 'all';
-let searchQuery         = '';
+let quotes               = [];
+let quotesTotal          = 0;
+let quotesOffset         = 0;
+const QUOTES_LIMIT       = 50;
+let activeGame           = 'all';
+let searchQuery          = '';
 let pendingDeleteQuoteId = null;
-let editingQuoteId      = null;
+let editingQuoteId       = null;
+let pinnedIds            = new Set();
 
 /* ── Refs ────────────────────────────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
@@ -34,8 +38,12 @@ const quoteAddBtn        = $('quote-add-btn');
 const quoteSearch        = $('quote-search');
 const quotesList         = $('quotes-list');
 const quotesEmptyState   = $('quotes-empty-state');
+const quotesPromptState  = $('quotes-prompt-state');
 const quoteTotalBadge    = $('quote-total-badge');
 const gameFiltersEl      = $('game-filters');
+const loadMoreRow        = $('load-more-row');
+const loadMoreBtn        = $('load-more-btn');
+const loadMoreInfo       = $('load-more-info');
 
 const modalBackdrop  = $('modal-backdrop');
 const modalMsg       = $('modal-msg');
@@ -80,7 +88,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     } else {
       dashSection.classList.add('hidden');
       quotesSection.classList.remove('hidden');
-      loadQuotes();
+      initQuotesTab();
     }
   });
 });
@@ -254,27 +262,17 @@ function renderSchedule(slots) {
   });
 }
 
-/* ── Quotes: carregar e renderizar ──────────────────────────────────────── */
-async function loadQuotes() {
-  try {
-    const params = new URLSearchParams();
-    if (activeGame !== 'all') params.set('game', activeGame);
-    if (searchQuery) params.set('q', searchQuery);
+/* ── Quotes: jogo filters (fixos, não dependem de carregar todos) ────────── */
+const KNOWN_GAMES = [
+  { value: 'Fallout',                      label: 'Fallout 1' },
+  { value: 'Fallout 2',                    label: 'Fallout 2' },
+  { value: 'Fallout 3',                    label: 'Fallout 3' },
+  { value: 'Fallout: New Vegas',           label: 'New Vegas'  },
+  { value: 'Fallout 4',                    label: 'Fallout 4' },
+  { value: 'Fallout TV Series (2024)',      label: 'TV Series'  },
+];
 
-    const res  = await fetch(`/api/quotes?${params}`);
-    if (!res.ok) { showLogin(); return; }
-    const data = await res.json();
-    quotes = data.quotes || [];
-    renderGameFilters(data._meta);
-    renderQuotes();
-  } catch {
-    // silently fail
-  }
-}
-
-function renderGameFilters(meta) {
-  quoteTotalBadge.textContent = `${quotes.length} quote${quotes.length !== 1 ? 's' : ''}`;
-
+function buildGameFilters() {
   gameFiltersEl.innerHTML = '';
 
   const allBtn = document.createElement('button');
@@ -283,18 +281,11 @@ function renderGameFilters(meta) {
   allBtn.textContent = 'Todos';
   gameFiltersEl.appendChild(allBtn);
 
-  const gamesInData = [...new Set(quotes.map(q => {
-    if (q.game.startsWith('Fallout: New Vegas')) return 'Fallout: New Vegas';
-    return q.game;
-  }))].sort();
-
-  gamesInData.forEach(game => {
+  KNOWN_GAMES.forEach(({ value, label }) => {
     const btn = document.createElement('button');
-    btn.className = `filter${activeGame === game ? ' active' : ''}`;
-    btn.dataset.game = game;
-    btn.textContent = game
-      .replace('Fallout: New Vegas', 'New Vegas')
-      .replace('Fallout TV Series (2024)', 'TV Series');
+    btn.className = `filter${activeGame === value ? ' active' : ''}`;
+    btn.dataset.game = value;
+    btn.textContent = label;
     gameFiltersEl.appendChild(btn);
   });
 
@@ -303,34 +294,89 @@ function renderGameFilters(meta) {
       gameFiltersEl.querySelectorAll('.filter').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeGame = btn.dataset.game;
-      loadQuotes();
+      resetAndLoadQuotes();
     });
   });
 }
 
-function renderQuotes() {
+function hasActiveFilter() {
+  return searchQuery.length >= 2 || activeGame !== 'all';
+}
+
+/* ── Quotes: carregar (paginado, server-side) ────────────────────────────── */
+async function resetAndLoadQuotes() {
+  quotesOffset = 0;
+  quotes = [];
   quotesList.innerHTML = '';
+  await loadQuotesPage();
+}
 
-  let filtered = quotes;
-  if (activeGame !== 'all') {
-    filtered = quotes.filter(q => q.game === activeGame || q.game.startsWith(activeGame));
-  }
-
-  quoteTotalBadge.textContent = `${filtered.length} quote${filtered.length !== 1 ? 's' : ''}`;
-
-  if (filtered.length === 0) {
-    quotesEmptyState.classList.remove('hidden');
+async function loadQuotesPage() {
+  if (!hasActiveFilter()) {
+    showQuotesPrompt();
     return;
   }
-  quotesEmptyState.classList.add('hidden');
 
-  filtered.forEach(qt => {
+  try {
+    const params = new URLSearchParams({
+      limit:  QUOTES_LIMIT,
+      offset: quotesOffset,
+    });
+    if (activeGame !== 'all') params.set('game', activeGame);
+    if (searchQuery)           params.set('q',    searchQuery);
+
+    const res  = await fetch(`/api/quotes?${params}`);
+    if (!res.ok) { showLogin(); return; }
+    const data = await res.json();
+
+    quotesTotal = data.total;
+    const newQuotes = data.quotes || [];
+    quotes = quotesOffset === 0 ? newQuotes : [...quotes, ...newQuotes];
+
+    quoteTotalBadge.textContent = `${quotesTotal.toLocaleString('pt-BR')} resultado${quotesTotal !== 1 ? 's' : ''}`;
+    quotesPromptState.classList.add('hidden');
+
+    if (quotesOffset === 0) quotesList.innerHTML = '';
+
+    if (quotes.length === 0) {
+      quotesEmptyState.classList.remove('hidden');
+      loadMoreRow.classList.add('hidden');
+      return;
+    }
+    quotesEmptyState.classList.add('hidden');
+
+    appendQuotes(newQuotes);
+
+    const shown = quotes.length;
+    const hasMore = shown < quotesTotal;
+    loadMoreRow.classList.toggle('hidden', !hasMore);
+    if (hasMore) {
+      loadMoreInfo.textContent = `${shown.toLocaleString('pt-BR')} de ${quotesTotal.toLocaleString('pt-BR')}`;
+    }
+  } catch {
+    // silently fail
+  }
+}
+
+function showQuotesPrompt() {
+  quotesPromptState.classList.remove('hidden');
+  quotesEmptyState.classList.add('hidden');
+  loadMoreRow.classList.add('hidden');
+  quotesList.innerHTML = '';
+  quoteTotalBadge.textContent = '';
+}
+
+function appendQuotes(newQuotes) {
+  newQuotes.forEach(qt => {
     const item = document.createElement('div');
     item.className = 'quote-item';
+    item.dataset.id = qt.id;
 
     const tagsHtml = (qt.tags || []).map(t =>
       `<span class="tag-pill">${escapeHtml(t)}</span>`
     ).join('');
+
+    const isPinned = pinnedIds.has(qt.id);
 
     item.innerHTML = `
       <div class="quote-item-body">
@@ -342,6 +388,9 @@ function renderQuotes() {
         </div>
       </div>
       <div class="quote-item-actions">
+        <button class="btn-pin ${isPinned ? 'is-pinned' : ''}" data-id="${qt.id}" title="${isPinned ? 'Remover da fila' : 'Agendar próximo post'}">
+          ${isPinned ? '★ Agendado' : '☆ Agendar'}
+        </button>
         <button class="btn-edit"   data-id="${qt.id}">Editar</button>
         <button class="btn-delete" data-id="${qt.id}">Excluir</button>
       </div>
@@ -349,6 +398,9 @@ function renderQuotes() {
     quotesList.appendChild(item);
   });
 
+  quotesList.querySelectorAll('.btn-pin').forEach(btn => {
+    btn.addEventListener('click', () => togglePin(parseInt(btn.dataset.id, 10)));
+  });
   quotesList.querySelectorAll('.btn-edit').forEach(btn => {
     btn.addEventListener('click', () => openQuoteModal(parseInt(btn.dataset.id, 10)));
   });
@@ -363,9 +415,57 @@ quoteSearch.addEventListener('input', () => {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(() => {
     searchQuery = quoteSearch.value.trim();
-    loadQuotes();
-  }, 300);
+    resetAndLoadQuotes();
+  }, 350);
 });
+
+loadMoreBtn.addEventListener('click', async () => {
+  quotesOffset += QUOTES_LIMIT;
+  loadMoreBtn.disabled = true;
+  loadMoreBtn.textContent = 'Carregando…';
+  await loadQuotesPage();
+  loadMoreBtn.disabled = false;
+  loadMoreBtn.textContent = 'Carregar mais';
+});
+
+/* ── Quotes: pin ─────────────────────────────────────────────────────────── */
+async function togglePin(id) {
+  const isPinned = pinnedIds.has(id);
+  const method   = isPinned ? 'DELETE' : 'POST';
+  const res      = await fetch(`/api/quotes/${id}/pin`, { method });
+  if (!res.ok) return;
+  const data = await res.json();
+  pinnedIds = new Set(data.pinned);
+
+  // atualiza visual do botão sem re-renderizar tudo
+  const btn = quotesList.querySelector(`.btn-pin[data-id="${id}"]`);
+  if (btn) {
+    const nowPinned = pinnedIds.has(id);
+    btn.classList.toggle('is-pinned', nowPinned);
+    btn.textContent = nowPinned ? '★ Agendado' : '☆ Agendar';
+  }
+}
+
+/* ── Quotes: init da tab ─────────────────────────────────────────────────── */
+async function initQuotesTab() {
+  // Carrega pinned IDs do state atual
+  try {
+    const res  = await fetch('/api/pinned');
+    if (res.ok) {
+      const data = await res.json();
+      pinnedIds = new Set(data.pinned || []);
+    }
+  } catch {}
+  buildGameFilters();
+  showQuotesPrompt();
+  // atualiza o total no prompt
+  const res = await fetch('/api/stats');
+  if (res.ok) {
+    const s = await res.json();
+    const el = $('prompt-total');
+    if (el) el.textContent = s.total.toLocaleString('pt-BR');
+  }
+}
 
 /* ── Quotes: modal criar/editar ──────────────────────────────────────────── */
 quoteAddBtn.addEventListener('click', () => openQuoteModal(null));

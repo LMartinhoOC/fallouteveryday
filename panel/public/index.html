@@ -99,15 +99,27 @@
       </div>
 
       <div class="quotes-controls">
-        <input type="text" id="quote-search" placeholder="Buscar quote ou personagem…" class="search-input" />
+        <input type="text" id="quote-search" placeholder="Buscar por frase, keyword ou personagem…" class="search-input" />
         <div class="filters" id="game-filters"></div>
+      </div>
+
+      <!-- Estado inicial: aguardando busca -->
+      <div class="empty-state" id="quotes-prompt-state">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <p>Digite para buscar nas <strong id="prompt-total">88k+</strong> quotes.</p>
+        <small class="muted">Ou selecione um jogo acima.</small>
       </div>
 
       <div id="quotes-list" class="quotes-list"></div>
 
       <div class="empty-state hidden" id="quotes-empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/></svg>
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/></svg>
         <p>Nenhuma quote encontrada.</p>
+      </div>
+
+      <div class="load-more-row hidden" id="load-more-row">
+        <button class="btn btn-ghost" id="load-more-btn">Carregar mais</button>
+        <span class="load-more-info" id="load-more-info"></span>
       </div>
 
     </main>

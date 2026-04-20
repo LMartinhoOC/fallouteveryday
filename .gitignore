@@ -1,5 +1,6 @@
 node_modules/
 .env
+.env.*
 uploads/*
 !uploads/.gitkeep
 
@@ -8,3 +9,9 @@ uploads/*
 
 # scrape reports
 data/scrape-report-*.json
+
+# Claude Code
+.claude/
+
+# VS Code local settings (mantém tasks e launch, ignora só o local)
+.vscode/settings.json

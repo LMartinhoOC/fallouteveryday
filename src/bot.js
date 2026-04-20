@@ -17,14 +17,27 @@ function getClient() {
 }
 
 async function postNext() {
-  const data    = JSON.parse(fs.readFileSync(QUOTES_FILE, 'utf8'));
-  const state   = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-  const postedIds = new Set(state.posted.map(p => p.id));
+  const data  = JSON.parse(fs.readFileSync(QUOTES_FILE, 'utf8'));
+  const state = JSON.parse(fs.readFileSync(STATE_FILE,  'utf8'));
 
-  const unposted = data.quotes.filter(q => !postedIds.has(q.id));
-  const pool     = unposted.length > 0 ? unposted : data.quotes;
+  let entry;
 
-  const entry = pool[Math.floor(Math.random() * pool.length)];
+  // Pinned queue tem prioridade
+  if (state.pinned?.length > 0) {
+    const pinnedId = state.pinned[0];
+    entry = data.quotes.find(q => q.id === pinnedId);
+    if (entry) {
+      state.pinned = state.pinned.slice(1);
+    }
+  }
+
+  // Fallback: aleatório dos não postados
+  if (!entry) {
+    const postedIds = new Set(state.posted.map(p => p.id));
+    const unposted  = data.quotes.filter(q => !postedIds.has(q.id));
+    const pool      = unposted.length > 0 ? unposted : data.quotes;
+    entry = pool[Math.floor(Math.random() * pool.length)];
+  }
   const tweet = entry.quote.toLowerCase();
 
   console.log(`[bot] ${MOCK_MODE ? '[MOCK] ' : ''}Postando "${tweet.slice(0, 60).replace(/\n/g, ' ')}…"`);
