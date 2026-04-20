@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Painel (abre no browser)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/panel/server.js",
+      "envFile": "${workspaceFolder}/.env",
+      "serverReadyAction": {
+        "pattern": "Rodando em http://localhost:([0-9]+)",
+        "uriFormat": "http://localhost:%s",
+        "action": "openExternally"
+      },
+      "presentation": {
+        "group": "painel",
+        "order": 1
+      }
+    },
+    {
+      "name": "Bot: disparar uma vez",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/bot.js",
+      "envFile": "${workspaceFolder}/.env",
+      "presentation": {
+        "group": "painel",
+        "order": 2
+      }
+    }
+  ]
+}

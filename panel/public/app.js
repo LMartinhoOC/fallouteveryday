@@ -1,62 +1,46 @@
 /* ── Estado ──────────────────────────────────────────────────────────────── */
-let queue           = [];
-let activeFilter    = 'all';
-let pendingDeleteId = null;
-
-let quotes          = [];
-let activeGame      = 'all';
-let searchQuery     = '';
+let quotes              = [];
+let activeGame          = 'all';
+let searchQuery         = '';
 let pendingDeleteQuoteId = null;
-let pendingScheduleQuote = null;
-let editingQuoteId  = null;
+let editingQuoteId      = null;
 
 /* ── Refs ────────────────────────────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
 
-const loginScreen   = $('login-screen');
-const mainScreen    = $('main-screen');
-const loginForm     = $('login-form');
-const loginError    = $('login-error');
-const passwordInput = $('password');
+const loginScreen    = $('login-screen');
+const mainScreen     = $('main-screen');
+const loginForm      = $('login-form');
+const loginError     = $('login-error');
+const passwordInput  = $('password');
 
-const addBtn        = $('add-btn');
-const addForm       = $('add-form');
-const postForm      = $('post-form');
-const cancelBtn     = $('cancel-btn');
-const emptyAddBtn   = $('empty-add-btn');
+const themeBtn       = $('theme-btn');
+const themeIcon      = $('theme-icon');
+const logoutBtn      = $('logout-btn');
+const todayBadge     = $('today-badge');
 
-const uploadZone    = $('upload-zone');
-const imageInput    = $('image-input');
-const placeholder   = $('upload-placeholder');
-const imgPreview    = $('img-preview');
-const removeImgBtn  = $('remove-img');
+const dashSection    = $('dashboard-section');
+const quotesSection  = $('quotes-section');
 
-const captionInput  = $('caption-input');
-const charCount     = $('char-count');
-const scheduleInput = $('schedule-input');
+const statTotal      = $('stat-total');
+const statPosted     = $('stat-posted');
+const statRemaining  = $('stat-remaining');
+const statYears      = $('stat-years');
+const recentList     = $('recent-list');
+const recentEmpty    = $('recent-empty');
+const scheduleList   = $('schedule-list');
 
-const queueList     = $('queue-list');
-const emptyState    = $('empty-state');
-const pendingBadge  = $('pending-badge');
-
-const themeBtn      = $('theme-btn');
-const themeIcon     = $('theme-icon');
-const logoutBtn     = $('logout-btn');
-
-const modalBackdrop = $('modal-backdrop');
-const modalMsg      = $('modal-msg');
-const modalCancel   = $('modal-cancel');
-const modalConfirm  = $('modal-confirm');
-
-// Quotes refs
-const quoteSection       = $('quotes-section');
-const queueSection       = $('queue-section');
 const quoteAddBtn        = $('quote-add-btn');
 const quoteSearch        = $('quote-search');
 const quotesList         = $('quotes-list');
 const quotesEmptyState   = $('quotes-empty-state');
 const quoteTotalBadge    = $('quote-total-badge');
 const gameFiltersEl      = $('game-filters');
+
+const modalBackdrop  = $('modal-backdrop');
+const modalMsg       = $('modal-msg');
+const modalCancel    = $('modal-cancel');
+const modalConfirm   = $('modal-confirm');
 
 const quoteModalBackdrop = $('quote-modal-backdrop');
 const quoteForm          = $('quote-form');
@@ -68,12 +52,6 @@ const quoteGameInput     = $('quote-game-input');
 const quoteTagsInput     = $('quote-tags-input');
 const quoteModalCancel   = $('quote-modal-cancel');
 const quoteModalSubmit   = $('quote-modal-submit');
-
-const scheduleModalBackdrop = $('schedule-modal-backdrop');
-const schedulePreview       = $('schedule-preview');
-const scheduleModalInput    = $('schedule-modal-input');
-const scheduleModalCancel   = $('schedule-modal-cancel');
-const scheduleModalConfirm  = $('schedule-modal-confirm');
 
 /* ── Tema ────────────────────────────────────────────────────────────────── */
 function applyTheme(theme) {
@@ -87,8 +65,7 @@ const savedTheme = localStorage.getItem('theme') ||
 applyTheme(savedTheme);
 
 themeBtn.addEventListener('click', () => {
-  const current = document.documentElement.getAttribute('data-theme');
-  applyTheme(current === 'dark' ? 'light' : 'dark');
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
 });
 
 /* ── Tabs ────────────────────────────────────────────────────────────────── */
@@ -96,13 +73,13 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    const tab = btn.dataset.tab;
-    if (tab === 'queue') {
-      queueSection.classList.remove('hidden');
-      quoteSection.classList.add('hidden');
+    if (btn.dataset.tab === 'dashboard') {
+      dashSection.classList.remove('hidden');
+      quotesSection.classList.add('hidden');
+      loadDashboard();
     } else {
-      queueSection.classList.add('hidden');
-      quoteSection.classList.remove('hidden');
+      dashSection.classList.add('hidden');
+      quotesSection.classList.remove('hidden');
       loadQuotes();
     }
   });
@@ -125,7 +102,7 @@ function showLogin() {
 function showMain() {
   loginScreen.classList.add('hidden');
   mainScreen.classList.remove('hidden');
-  loadQueue();
+  loadDashboard({ sync: true });
 }
 
 loginForm.addEventListener('submit', async e => {
@@ -134,7 +111,6 @@ loginForm.addEventListener('submit', async e => {
   const btn = loginForm.querySelector('button[type="submit"]');
   btn.disabled = true;
   btn.textContent = 'Entrando…';
-
   try {
     const res = await fetch('/api/login', {
       method: 'POST',
@@ -161,240 +137,122 @@ logoutBtn.addEventListener('click', async () => {
   showLogin();
 });
 
-/* ── Fila ────────────────────────────────────────────────────────────────── */
-async function loadQueue() {
+/* ── Dashboard ───────────────────────────────────────────────────────────── */
+async function loadDashboard({ sync = false } = {}) {
+  setSyncState('loading');
   try {
-    const res  = await fetch('/api/queue');
-    if (!res.ok) { showLogin(); return; }
-    const data = await res.json();
-    queue = (data.queue || []).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
-    renderQueue();
+    if (sync) {
+      const syncRes = await fetch('/api/sync', { method: 'POST' });
+      if (syncRes.status === 401) { showLogin(); return; }
+      if (!syncRes.ok) {
+        const err = await syncRes.json();
+        setSyncState('error', err.error);
+        // continue with local data anyway
+      } else {
+        const { syncedAt } = await syncRes.json();
+        setSyncState('ok', syncedAt);
+      }
+    }
+
+    const [statsRes, recentRes, scheduleRes] = await Promise.all([
+      fetch('/api/stats'),
+      fetch('/api/recent?limit=20'),
+      fetch('/api/schedule'),
+    ]);
+
+    if (!statsRes.ok) { showLogin(); return; }
+
+    const stats    = await statsRes.json();
+    const recent   = await recentRes.json();
+    const schedule = await scheduleRes.json();
+
+    renderStats(stats);
+    renderRecent(recent);
+    renderSchedule(schedule);
+    if (!sync) setSyncState('idle');
   } catch {
-    // silently fail
+    setSyncState('error', 'Erro de rede');
   }
 }
 
-function renderQueue() {
-  const counts = { all: queue.length, pending: 0, posted: 0, error: 0 };
-  queue.forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
+function setSyncState(state, detail = '') {
+  const btn = $('sync-btn');
+  const lbl = $('sync-label');
+  if (!btn || !lbl) return;
+  if (state === 'loading') {
+    btn.disabled = true;
+    lbl.textContent = 'Sincronizando…';
+  } else if (state === 'ok') {
+    btn.disabled = false;
+    const time = detail ? new Date(detail).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+    lbl.textContent = time ? `Sincronizado às ${time}` : 'Sincronizado';
+  } else if (state === 'error') {
+    btn.disabled = false;
+    lbl.textContent = detail || 'Erro ao sincronizar';
+  } else {
+    btn.disabled = false;
+    lbl.textContent = '';
+  }
+}
 
-  $('count-all').textContent     = counts.all;
-  $('count-pending').textContent = counts.pending;
-  $('count-posted').textContent  = counts.posted;
-  $('count-error').textContent   = counts.error;
+function renderStats(stats) {
+  statTotal.textContent     = stats.total.toLocaleString('pt-BR');
+  statPosted.textContent    = stats.posted.toLocaleString('pt-BR');
+  statRemaining.textContent = stats.remaining.toLocaleString('pt-BR');
+  statYears.textContent     = stats.yearsLeft ? `${stats.yearsLeft} anos` : '—';
+  todayBadge.textContent    = `${stats.todayCount} hoje`;
+}
 
-  const n = counts.pending;
-  pendingBadge.textContent = `${n} pendente${n !== 1 ? 's' : ''}`;
-
-  const filtered = activeFilter === 'all' ? queue : queue.filter(p => p.status === activeFilter);
-
-  queueList.innerHTML = '';
-
-  if (filtered.length === 0) {
-    emptyState.classList.remove('hidden');
+function renderRecent(posts) {
+  recentList.innerHTML = '';
+  if (!posts.length) {
+    recentEmpty.classList.remove('hidden');
     return;
   }
-  emptyState.classList.add('hidden');
+  recentEmpty.classList.add('hidden');
 
-  filtered.forEach(post => {
+  posts.forEach(p => {
     const item = document.createElement('div');
-    item.className = 'queue-item';
-    item.dataset.id = post.id;
+    item.className = 'recent-item';
 
-    const thumb = post.imagePath
-      ? `<img class="item-thumb" src="/uploads/${post.imagePath}" alt="" loading="lazy" />`
-      : `<div class="item-thumb-placeholder">☢</div>`;
-
-    const statusMap = {
-      pending: ['status-pending', 'Pendente'],
-      posted:  ['status-posted',  'Postado'],
-      error:   ['status-error',   'Erro'],
-    };
-    const [cls, label] = statusMap[post.status] || ['status-pending', post.status];
-
-    const scheduledStr = new Date(post.scheduledAt).toLocaleString('pt-BR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-
-    const extraMeta = post.status === 'error' && post.error
-      ? `<span title="${post.error}">⚠ ${post.error.slice(0, 50)}</span>`
-      : post.status === 'posted' && post.tweetId
-        ? `<span>Tweet: <a href="https://x.com/i/web/status/${post.tweetId}" target="_blank" rel="noopener">${post.tweetId.slice(0, 12)}…</a></span>`
-        : '';
-
-    const canDelete = post.status !== 'posted';
+    const tweetUrl = `https://x.com/i/web/status/${p.tweetId}`;
+    const isMock   = String(p.tweetId).startsWith('MOCK_');
 
     item.innerHTML = `
-      ${thumb}
-      <div class="item-body">
-        <div class="item-caption">${escapeHtml(post.caption)}</div>
-        <div class="item-meta">
-          <span class="status-badge ${cls}">${label}</span>
-          <span>📅 ${scheduledStr}</span>
-          ${extraMeta}
+      <div class="recent-item-body">
+        <div class="recent-quote">${escapeHtml(p.quote)}</div>
+        <div class="recent-meta">
+          <span class="quote-character">${escapeHtml(p.character)}</span>
+          <span class="quote-game">${escapeHtml(p.game)}</span>
+          <span class="recent-time">${timeAgo(p.postedAt)}</span>
+          ${!isMock ? `<a class="recent-link" href="${tweetUrl}" target="_blank" rel="noopener">Ver tweet →</a>` : ''}
         </div>
       </div>
-      <div class="item-actions">
-        ${canDelete ? `<button class="btn-delete" data-id="${post.id}">Excluir</button>` : ''}
-      </div>
     `;
-    queueList.appendChild(item);
-  });
-
-  queueList.querySelectorAll('.btn-delete').forEach(btn => {
-    btn.addEventListener('click', () => confirmDelete(btn.dataset.id));
+    recentList.appendChild(item);
   });
 }
 
-/* ── Filtros (fila) ──────────────────────────────────────────────────────── */
-document.querySelectorAll('.filter').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#filters .filter').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeFilter = btn.dataset.filter;
-    renderQueue();
+function renderSchedule(slots) {
+  scheduleList.innerHTML = '';
+  if (!slots.length) {
+    scheduleList.textContent = 'Nenhum schedule encontrado.';
+    return;
+  }
+
+  const nextIdx = slots.findIndex(s => !s.passed);
+
+  slots.forEach((slot, i) => {
+    const item = document.createElement('div');
+    item.className = 'schedule-slot' + (slot.passed ? ' slot-passed' : '') + (i === nextIdx ? ' slot-next' : '');
+    item.innerHTML = `
+      <span class="slot-brt">${slot.brt}</span>
+      <span class="slot-utc">UTC ${slot.utc}</span>
+      ${i === nextIdx ? '<span class="slot-badge">próximo</span>' : ''}
+    `;
+    scheduleList.appendChild(item);
   });
-});
-
-/* ── Formulário de adição (fila) ─────────────────────────────────────────── */
-function openAddForm(caption = '') {
-  addForm.classList.remove('hidden');
-  addForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setMinutes(0, 0, 0);
-  scheduleInput.value = toLocalDatetimeInput(d);
-  if (caption) {
-    captionInput.value = caption;
-    charCount.textContent = caption.length;
-  }
-  captionInput.focus();
 }
-
-function closeAddForm() {
-  addForm.classList.add('hidden');
-  postForm.reset();
-  clearImagePreview();
-  charCount.textContent = '0';
-}
-
-addBtn.addEventListener('click', () => openAddForm());
-emptyAddBtn.addEventListener('click', () => openAddForm());
-cancelBtn.addEventListener('click', closeAddForm);
-
-captionInput.addEventListener('input', () => {
-  charCount.textContent = captionInput.value.length;
-});
-
-postForm.addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = postForm.querySelector('button[type="submit"]');
-  btn.disabled = true;
-  btn.textContent = 'Agendando…';
-
-  try {
-    const formData = new FormData(postForm);
-    const res = await fetch('/api/queue', { method: 'POST', body: formData });
-    const data = await res.json();
-
-    if (res.ok) {
-      closeAddForm();
-      await loadQueue();
-    } else {
-      alert(data.error || 'Erro ao agendar post.');
-    }
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Agendar';
-  }
-});
-
-/* ── Upload ──────────────────────────────────────────────────────────────── */
-imageInput.addEventListener('change', () => {
-  if (imageInput.files[0]) showPreview(imageInput.files[0]);
-});
-
-uploadZone.addEventListener('dragover', e => {
-  e.preventDefault();
-  uploadZone.classList.add('drag-over');
-});
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('drag-over');
-  const file = e.dataTransfer?.files[0];
-  if (file && file.type.startsWith('image/')) {
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    imageInput.files = dt.files;
-    showPreview(file);
-  }
-});
-
-removeImgBtn.addEventListener('click', e => {
-  e.preventDefault();
-  e.stopPropagation();
-  clearImagePreview();
-  imageInput.value = '';
-});
-
-function showPreview(file) {
-  const url = URL.createObjectURL(file);
-  imgPreview.src = url;
-  imgPreview.classList.remove('hidden');
-  placeholder.classList.add('hidden');
-  removeImgBtn.classList.remove('hidden');
-  imageInput.style.display = 'none';
-}
-
-function clearImagePreview() {
-  imgPreview.src = '';
-  imgPreview.classList.add('hidden');
-  placeholder.classList.remove('hidden');
-  removeImgBtn.classList.add('hidden');
-  imageInput.style.display = '';
-}
-
-/* ── Delete (fila) ───────────────────────────────────────────────────────── */
-function confirmDelete(id) {
-  const post = queue.find(p => p.id === id);
-  if (!post) return;
-  pendingDeleteId = id;
-  pendingDeleteQuoteId = null;
-  modalMsg.textContent = `Excluir o post agendado para ${new Date(post.scheduledAt).toLocaleString('pt-BR')}?`;
-  modalBackdrop.classList.remove('hidden');
-}
-
-modalCancel.addEventListener('click', () => {
-  modalBackdrop.classList.add('hidden');
-  pendingDeleteId = null;
-  pendingDeleteQuoteId = null;
-});
-
-modalBackdrop.addEventListener('click', e => {
-  if (e.target === modalBackdrop) {
-    modalBackdrop.classList.add('hidden');
-    pendingDeleteId = null;
-    pendingDeleteQuoteId = null;
-  }
-});
-
-modalConfirm.addEventListener('click', async () => {
-  modalBackdrop.classList.add('hidden');
-
-  if (pendingDeleteId) {
-    const res = await fetch(`/api/queue/${pendingDeleteId}`, { method: 'DELETE' });
-    pendingDeleteId = null;
-    if (res.ok) await loadQueue();
-    else alert('Erro ao excluir post.');
-  } else if (pendingDeleteQuoteId !== null) {
-    const res = await fetch(`/api/quotes/${pendingDeleteQuoteId}`, { method: 'DELETE' });
-    pendingDeleteQuoteId = null;
-    if (res.ok) await loadQuotes();
-    else alert('Erro ao excluir quote.');
-  }
-});
 
 /* ── Quotes: carregar e renderizar ──────────────────────────────────────── */
 async function loadQuotes() {
@@ -415,17 +273,8 @@ async function loadQuotes() {
 }
 
 function renderGameFilters(meta) {
-  // Collect unique games from full list (always fetch without filter for counts)
-  const allGames = [...new Set((meta?._allGames || []))];
-  // We'll just use predefined games for the filter pills
-  const knownGames = [
-    'Fallout', 'Fallout 2', 'Fallout 3', 'Fallout: New Vegas',
-    'Fallout 4', 'Fallout TV Series (2024)',
-  ];
-
   quoteTotalBadge.textContent = `${quotes.length} quote${quotes.length !== 1 ? 's' : ''}`;
 
-  // Build pills from actual data if we don't have a full-count meta
   gameFiltersEl.innerHTML = '';
 
   const allBtn = document.createElement('button');
@@ -434,9 +283,7 @@ function renderGameFilters(meta) {
   allBtn.textContent = 'Todos';
   gameFiltersEl.appendChild(allBtn);
 
-  // Get unique games present in current quotes (or all known)
   const gamesInData = [...new Set(quotes.map(q => {
-    // Normalize DLC sub-games under their parent
     if (q.game.startsWith('Fallout: New Vegas')) return 'Fallout: New Vegas';
     return q.game;
   }))].sort();
@@ -445,8 +292,9 @@ function renderGameFilters(meta) {
     const btn = document.createElement('button');
     btn.className = `filter${activeGame === game ? ' active' : ''}`;
     btn.dataset.game = game;
-    btn.textContent = game.replace('Fallout: New Vegas', 'New Vegas')
-                          .replace('Fallout TV Series (2024)', 'TV Series');
+    btn.textContent = game
+      .replace('Fallout: New Vegas', 'New Vegas')
+      .replace('Fallout TV Series (2024)', 'TV Series');
     gameFiltersEl.appendChild(btn);
   });
 
@@ -463,7 +311,6 @@ function renderGameFilters(meta) {
 function renderQuotes() {
   quotesList.innerHTML = '';
 
-  // Client-side game filter for DLC sub-entries
   let filtered = quotes;
   if (activeGame !== 'all') {
     filtered = quotes.filter(q => q.game === activeGame || q.game.startsWith(activeGame));
@@ -495,8 +342,7 @@ function renderQuotes() {
         </div>
       </div>
       <div class="quote-item-actions">
-        <button class="btn-schedule" data-id="${qt.id}">Agendar</button>
-        <button class="btn-edit" data-id="${qt.id}">Editar</button>
+        <button class="btn-edit"   data-id="${qt.id}">Editar</button>
         <button class="btn-delete" data-id="${qt.id}">Excluir</button>
       </div>
     `;
@@ -508,9 +354,6 @@ function renderQuotes() {
   });
   quotesList.querySelectorAll('.btn-delete').forEach(btn => {
     btn.addEventListener('click', () => confirmDeleteQuote(parseInt(btn.dataset.id, 10)));
-  });
-  quotesList.querySelectorAll('.btn-schedule').forEach(btn => {
-    btn.addEventListener('click', () => openScheduleModal(parseInt(btn.dataset.id, 10)));
   });
 }
 
@@ -534,17 +377,17 @@ function openQuoteModal(id) {
   if (id !== null) {
     const qt = quotes.find(q => q.id === id);
     if (!qt) return;
-    quoteModalTitle.textContent = 'Editar Quote';
-    quoteModalSubmit.textContent = 'Salvar';
-    quoteIdInput.value = qt.id;
-    quoteTextInput.value = qt.quote;
-    quoteCharacterInput.value = qt.character;
-    quoteGameInput.value = qt.game;
-    quoteTagsInput.value = (qt.tags || []).join(', ');
+    quoteModalTitle.textContent    = 'Editar Quote';
+    quoteModalSubmit.textContent   = 'Salvar';
+    quoteIdInput.value             = qt.id;
+    quoteTextInput.value           = qt.quote;
+    quoteCharacterInput.value      = qt.character;
+    quoteGameInput.value           = qt.game;
+    quoteTagsInput.value           = (qt.tags || []).join(', ');
   } else {
-    quoteModalTitle.textContent = 'Nova Quote';
+    quoteModalTitle.textContent  = 'Nova Quote';
     quoteModalSubmit.textContent = 'Criar';
-    quoteIdInput.value = '';
+    quoteIdInput.value           = '';
   }
 
   quoteModalBackdrop.classList.remove('hidden');
@@ -589,7 +432,6 @@ quoteForm.addEventListener('submit', async e => {
         body: JSON.stringify(body),
       });
     }
-
     const data = await res.json();
     if (res.ok) {
       closeQuoteModal();
@@ -608,71 +450,43 @@ function confirmDeleteQuote(id) {
   const qt = quotes.find(q => q.id === id);
   if (!qt) return;
   pendingDeleteQuoteId = id;
-  pendingDeleteId = null;
   modalMsg.textContent = `Excluir a quote de ${qt.character}?`;
   modalBackdrop.classList.remove('hidden');
 }
 
-/* ── Quotes: agendar na fila ─────────────────────────────────────────────── */
-function openScheduleModal(id) {
-  const qt = quotes.find(q => q.id === id);
-  if (!qt) return;
-  pendingScheduleQuote = qt;
-
-  const formatted = `"${qt.quote}" — ${qt.character}, ${qt.game}\n\n#Fallout #FalloutQuotes`;
-  schedulePreview.textContent = formatted;
-
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setMinutes(0, 0, 0);
-  scheduleModalInput.value = toLocalDatetimeInput(d);
-
-  scheduleModalBackdrop.classList.remove('hidden');
-}
-
-scheduleModalCancel.addEventListener('click', () => {
-  scheduleModalBackdrop.classList.add('hidden');
-  pendingScheduleQuote = null;
+modalCancel.addEventListener('click', () => {
+  modalBackdrop.classList.add('hidden');
+  pendingDeleteQuoteId = null;
 });
-scheduleModalBackdrop.addEventListener('click', e => {
-  if (e.target === scheduleModalBackdrop) {
-    scheduleModalBackdrop.classList.add('hidden');
-    pendingScheduleQuote = null;
+
+modalBackdrop.addEventListener('click', e => {
+  if (e.target === modalBackdrop) {
+    modalBackdrop.classList.add('hidden');
+    pendingDeleteQuoteId = null;
   }
 });
 
-scheduleModalConfirm.addEventListener('click', async () => {
-  if (!pendingScheduleQuote || !scheduleModalInput.value) return;
-
-  const qt = pendingScheduleQuote;
-  const caption = `"${qt.quote}" — ${qt.character}, ${qt.game}\n\n#Fallout #FalloutQuotes`;
-
-  scheduleModalBackdrop.classList.add('hidden');
-  pendingScheduleQuote = null;
-
-  const formData = new FormData();
-  formData.set('caption', caption);
-  formData.set('scheduledAt', scheduleModalInput.value);
-  formData.set('quoteId', qt.id.toString());
-
-  const res = await fetch('/api/queue', { method: 'POST', body: formData });
-  if (res.ok) {
-    // Switch to queue tab
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector('.tab-btn[data-tab="queue"]').classList.add('active');
-    quoteSection.classList.add('hidden');
-    queueSection.classList.remove('hidden');
-    await loadQueue();
-  } else {
-    const data = await res.json();
-    alert(data.error || 'Erro ao agendar.');
+modalConfirm.addEventListener('click', async () => {
+  modalBackdrop.classList.add('hidden');
+  if (pendingDeleteQuoteId !== null) {
+    const res = await fetch(`/api/quotes/${pendingDeleteQuoteId}`, { method: 'DELETE' });
+    pendingDeleteQuoteId = null;
+    if (res.ok) await loadQuotes();
+    else alert('Erro ao excluir quote.');
   }
 });
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
-function toLocalDatetimeInput(date) {
-  const pad = n => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+function timeAgo(isoStr) {
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins  <  1) return 'agora';
+  if (mins  < 60) return `${mins}min atrás`;
+  if (hours < 24) return `${hours}h atrás`;
+  if (days  <  7) return `${days}d atrás`;
+  return new Date(isoStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function escapeHtml(str) {
@@ -682,6 +496,9 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+/* ── Sync button ─────────────────────────────────────────────────────────── */
+$('sync-btn').addEventListener('click', () => loadDashboard({ sync: true }));
 
 /* ── Init ────────────────────────────────────────────────────────────────── */
 checkAuth();
