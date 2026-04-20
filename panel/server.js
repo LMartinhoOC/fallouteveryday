@@ -167,6 +167,71 @@ app.get('/api/schedule', requireAuth, (req, res) => {
   }
 });
 
+// ─── Backfill (busca tweets recentes e preenche state.json) ────────────────
+app.post('/api/backfill', requireAuth, async (req, res) => {
+  const { TwitterApi } = require('twitter-api-v2');
+
+  const missing = [
+    process.env.X_API_KEY,
+    process.env.X_API_SECRET,
+    process.env.X_ACCESS_TOKEN,
+    process.env.X_ACCESS_TOKEN_SECRET,
+  ].some(v => !v);
+
+  if (missing) {
+    return res.status(500).json({ error: 'Credenciais da API do X não configuradas no .env' });
+  }
+
+  try {
+    const client = new TwitterApi({
+      appKey:       process.env.X_API_KEY,
+      appSecret:    process.env.X_API_SECRET,
+      accessToken:  process.env.X_ACCESS_TOKEN,
+      accessSecret: process.env.X_ACCESS_TOKEN_SECRET,
+    });
+
+    const me       = await client.v2.me();
+    const timeline = await client.v2.userTimeline(me.data.id, {
+      max_results: 100,
+      'tweet.fields': ['created_at', 'id'],
+      exclude: ['retweets', 'replies'],
+    });
+
+    const tweets = timeline.data?.data || [];
+    if (!tweets.length) return res.json({ added: 0, skipped: 0, unmatched: 0 });
+
+    const quotesData = readQuotes();
+    const quoteIndex = new Map(quotesData.quotes.map(q => [q.quote.toLowerCase().trim(), q]));
+
+    const state          = readState();
+    const postedTweetIds = new Set(state.posted.map(p => p.tweetId));
+    const postedQuoteIds = new Set(state.posted.map(p => p.id));
+
+    let added = 0, skipped = 0, unmatched = 0;
+
+    for (const tweet of tweets) {
+      if (postedTweetIds.has(tweet.id)) { skipped++; continue; }
+      const quote = quoteIndex.get(tweet.text.trim());
+      if (!quote)                        { unmatched++; continue; }
+      if (postedQuoteIds.has(quote.id))  { skipped++;  continue; }
+
+      state.posted.push({ id: quote.id, tweetId: tweet.id, postedAt: tweet.created_at || new Date().toISOString() });
+      postedTweetIds.add(tweet.id);
+      postedQuoteIds.add(quote.id);
+      added++;
+    }
+
+    if (added > 0) {
+      state.posted.sort((a, b) => new Date(a.postedAt) - new Date(b.postedAt));
+      fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+    }
+
+    res.json({ added, skipped, unmatched, total: state.posted.length });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // ─── Pinned list ───────────────────────────────────────────────────────────
 app.get('/api/pinned', requireAuth, (req, res) => {
   const state = readState();

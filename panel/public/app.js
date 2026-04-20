@@ -600,5 +600,31 @@ function escapeHtml(str) {
 /* ── Sync button ─────────────────────────────────────────────────────────── */
 $('sync-btn').addEventListener('click', () => loadDashboard({ sync: true }));
 
+/* ── Backfill button ─────────────────────────────────────────────────────── */
+$('backfill-btn').addEventListener('click', async () => {
+  const btn = $('backfill-btn');
+  const lbl = $('sync-label');
+  btn.disabled = true;
+  btn.textContent = '↓ Buscando tweets…';
+  lbl.textContent = '';
+  try {
+    const res  = await fetch('/api/backfill', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      lbl.textContent = `Erro: ${data.error}`;
+    } else {
+      lbl.textContent = data.added > 0
+        ? `Backfill: +${data.added} post${data.added !== 1 ? 's' : ''} adicionados (total: ${data.total})`
+        : 'Backfill: nada de novo.';
+      if (data.added > 0) loadDashboard();
+    }
+  } catch {
+    lbl.textContent = 'Erro de rede no backfill.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↓ Backfill Twitter';
+  }
+});
+
 /* ── Init ────────────────────────────────────────────────────────────────── */
 checkAuth();
