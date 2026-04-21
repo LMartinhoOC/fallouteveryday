@@ -136,7 +136,7 @@ Tem um `sleep 0–4s` antes de cada post pra evitar horários redondos demais.
 | Fallout: New Vegas — Lonesome Road | 3 |
 | Fallout: New Vegas — Dead Money | 1 |
 
-Maioria vem dos scrapers de dialogue files do Fandom (raw scripts), o que explica o volume desproporcional. As entradas de Fallout 1/2 e TV Series são curadas manualmente (Wikiquote, sites de quotes).
+A Maioria vem dos scrapers de dialogue files do Fandom (raw scripts), o que explica o volume desproporcional. As entradas de Fallout 1/2 e TV Series são curadas manualmente (Wikiquote, sites de quotes).
 
 ### Formato
 
