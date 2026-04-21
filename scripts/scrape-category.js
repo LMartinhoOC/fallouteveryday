@@ -31,6 +31,7 @@ const GAME_CATEGORIES = [
   { key: 'FO4',  category: 'Fallout 4 dialogue files',         game: 'Fallout 4' },
   { key: 'FONV', category: 'Fallout: New Vegas dialogue files', game: 'Fallout: New Vegas' },
   { key: 'FO3',  category: 'Fallout 3 dialogue files',         game: 'Fallout 3' },
+  { key: 'NUKA', category: 'Nuka-World dialogue files',        game: 'Fallout 4' },
 ];
 
 // ---------------------------------------------------------------------------

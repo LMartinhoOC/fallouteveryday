@@ -103,8 +103,22 @@ app.get('/api/stats', requireAuth, (req, res) => {
   const daysLeft  = postsPerDay > 0 ? Math.ceil(remaining / postsPerDay) : null;
   const yearsLeft = daysLeft ? (daysLeft / 365).toFixed(1) : null;
 
+  // Per-game breakdown (total + posted + remaining), sorted by total desc
+  const postedIds = new Set(state.posted.map(p => p.id));
+  const byGameMap = new Map();
+  for (const q of quotes.quotes) {
+    const g = q.game || '?';
+    if (!byGameMap.has(g)) byGameMap.set(g, { game: g, total: 0, posted: 0 });
+    const row = byGameMap.get(g);
+    row.total++;
+    if (postedIds.has(q.id)) row.posted++;
+  }
+  const byGame = [...byGameMap.values()]
+    .map(r => ({ ...r, remaining: r.total - r.posted }))
+    .sort((a, b) => b.total - a.total);
+
   const pinned = (state.pinned || []).length;
-  res.json({ total, posted, remaining, todayCount, lastPostedAt: lastPost?.postedAt || null, yearsLeft, postsPerDay, pinned });
+  res.json({ total, posted, remaining, todayCount, lastPostedAt: lastPost?.postedAt || null, yearsLeft, postsPerDay, pinned, byGame });
 });
 
 // ─── Recent posts ───────────────────────────────────────────────────────────

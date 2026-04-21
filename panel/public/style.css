@@ -597,6 +597,65 @@ textarea { resize: vertical; min-height: 100px; }
   .dash-grid { grid-template-columns: 1fr; }
 }
 
+/* ── Quotes por Jogo ─────────────────────────────────────────────────────── */
+.bygame-card { margin-top: 20px; }
+
+.bygame-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.bygame-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bygame-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.88rem;
+}
+
+.bygame-game {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bygame-counts {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.bygame-posted {
+  color: var(--status-posted-txt);
+  font-weight: 600;
+}
+
+.bygame-sep { margin: 0 3px; opacity: 0.5; }
+
+.bygame-bar {
+  height: 10px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  min-width: 40px;
+  transition: width 0.3s ease;
+}
+
+.bygame-bar-posted {
+  height: 100%;
+  background: linear-gradient(90deg, var(--acid), var(--acid-hover));
+  transition: width 0.3s ease;
+}
+
 /* ── Recent Posts ────────────────────────────────────────────────────────── */
 .recent-list {
   display: flex;

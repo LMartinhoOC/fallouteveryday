@@ -33,6 +33,7 @@ const statYears      = $('stat-years');
 const recentList     = $('recent-list');
 const recentEmpty    = $('recent-empty');
 const scheduleList   = $('schedule-list');
+const byGameList     = $('bygame-list');
 
 const quoteAddBtn        = $('quote-add-btn');
 const quoteSearch        = $('quote-search');
@@ -175,6 +176,7 @@ async function loadDashboard({ sync = false } = {}) {
     const schedule = await scheduleRes.json();
 
     renderStats(stats);
+    renderByGame(stats.byGame || []);
     renderRecent(recent);
     renderSchedule(schedule);
     if (!sync) setSyncState('idle');
@@ -238,6 +240,38 @@ function renderRecent(posts) {
       </div>
     `;
     recentList.appendChild(item);
+  });
+}
+
+function renderByGame(rows) {
+  byGameList.innerHTML = '';
+  if (!rows.length) {
+    byGameList.textContent = 'Sem dados.';
+    return;
+  }
+
+  const maxTotal = Math.max(...rows.map(r => r.total));
+  const fmt = n => n.toLocaleString('pt-BR');
+
+  rows.forEach(r => {
+    const pct        = maxTotal > 0 ? (r.total / maxTotal) * 100 : 0;
+    const postedPct  = r.total  > 0 ? (r.posted / r.total) * 100 : 0;
+    const row = document.createElement('div');
+    row.className = 'bygame-row';
+    row.innerHTML = `
+      <div class="bygame-label">
+        <span class="bygame-game">${escapeHtml(r.game)}</span>
+        <span class="bygame-counts">
+          <span class="bygame-posted">${fmt(r.posted)}</span>
+          <span class="bygame-sep">/</span>
+          <span class="bygame-total">${fmt(r.total)}</span>
+        </span>
+      </div>
+      <div class="bygame-bar" style="width: ${pct.toFixed(1)}%">
+        <div class="bygame-bar-posted" style="width: ${postedPct.toFixed(1)}%"></div>
+      </div>
+    `;
+    byGameList.appendChild(row);
   });
 }
 
