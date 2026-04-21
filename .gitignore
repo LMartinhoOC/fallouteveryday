@@ -10,6 +10,12 @@ uploads/*
 # scrape reports
 data/scrape-report-*.json
 
+# scrape preview files (validar antes de merge)
+data/quotes-*-preview.json
+
+# painel web — local-only (curadoria privada, não expor no GitHub)
+panel/
+
 # Claude Code
 .claude/
 

@@ -2,7 +2,7 @@
 
 > *"nan-ni shimasho-ka?"*
 
-Bot no Twitter/X que posta falas aleatórias do Fallout, sem contexto, em minúsculo — como se fosse um maluco recitando de memória. Roda de graça no GitHub Actions, 15x por dia, e tem um painel web pra curadoria.
+Bot no Twitter/X que posta falas aleatórias do Fallout, sem contexto, em minúsculo — como se fosse um maluco recitando de memória. Roda de graça no GitHub Actions, 15x por dia.
 
 **Estado atual:** 🟢 **LIVE em produção** · **93.814 quotes** no banco · 15 posts/dia · cobre Fallout 1, 2, 3, New Vegas (+ DLCs), 4 (+ Nuka-World) e TV Series (2024).
 
@@ -36,10 +36,6 @@ Essa é a parte mais importante da arquitetura. O mecanismo inteiro de dedup dep
 
 **Regra de ouro:** nunca edite IDs em `quotes.json`. A dedup inteira depende deles serem estáveis. Só adicionar novas quotes com `id = max+1`.
 
-### Fila pinada (prioridade)
-
-Além do sorteio, existe `state.pinned = [id1, id2, ...]` — uma fila FIFO. Se tiver algo nela, o bot consome o primeiro ID dali ao invés de sortear. O painel web gerencia via botões de "Agendar". Quotes pinadas também entram em `state.posted` depois de postadas, então a dedup natural cobre.
-
 ---
 
 ## Stack
@@ -48,11 +44,9 @@ Além do sorteio, existe `state.pinned = [id1, id2, ...]` — uma fila FIFO. Se 
 |--------|--------|
 | [src/bot.js](src/bot.js) | Núcleo: `postNext()` — lê quotes+state, sorteia não-postada, posta, grava state |
 | [src/scheduler.js](src/scheduler.js) | Wraps `postNext()` em `node-cron` job (uso local apenas) |
-| [start.js](start.js) | Entry do `npm start` — sobe scheduler + painel juntos |
-| [panel/server.js](panel/server.js) | Express + session auth. Painel web + REST API |
-| [panel/public/](panel/public) | Frontend vanilla JS (`index.html`, `app.js`, `style.css`) |
+| [start.js](start.js) | Entry do `npm start` — sobe o scheduler local |
 | [data/quotes.json](data/quotes.json) | Banco master (93.8k quotes). **Imutável em prod.** |
-| [data/state.json](data/state.json) | Log de posts: `{posted: [...], pinned: [...]}` |
+| [data/state.json](data/state.json) | Log de posts: `{posted: [...]}` |
 | [.github/workflows/post.yml](.github/workflows/post.yml) | GitHub Action — 15 crons/dia + commit de state.json |
 | [scripts/scrape-wikiquote.js](scripts/scrape-wikiquote.js) | Scraper Wikiquote (quotes curadas) |
 | [scripts/scrape-fandom.js](scripts/scrape-fandom.js) | Scraper Fandom por lista de personagens hardcoded |
@@ -77,28 +71,18 @@ X_API_KEY=
 X_API_SECRET=
 X_ACCESS_TOKEN=
 X_ACCESS_TOKEN_SECRET=
-PANEL_PASSWORD=
-SESSION_SECRET=
 CRON_SCHEDULE=0 * * * *
-PORT=3000
 MOCK_MODE=false
 ```
 
 > **Twitter API:** precisa de permissão **Read + Write** no Developer Portal e pelo menos $5 de crédito no plano pay-as-you-go.
 
-**Hash bcrypt pra `PANEL_PASSWORD`** (recomendado em prod):
-
-```bash
-node -e "require('bcryptjs').hash('SUA_SENHA', 10).then(console.log)"
-```
-
 ### 3. Rodar
 
 ```bash
-npm start              # scheduler + painel juntos
+npm start              # scheduler local
 npm run bot            # dispara 1 post imediatamente
-npm run panel          # só o painel (porta 3000)
-npm run scheduler      # só o cron local
+npm run scheduler      # só o cron
 ```
 
 Dev sem postar de verdade: `MOCK_MODE=true` no `.env` — simula tweet retornando ID `MOCK_<timestamp>`.
@@ -134,46 +118,11 @@ Tem um `sleep 0–4s` antes de cada post pra evitar horários redondos demais.
 
 ---
 
-## Painel Web
-
-Acessível em `http://localhost:3000` (senha = `PANEL_PASSWORD`).
-
-- **Dashboard** — Totais, posts recentes com link pro tweet, schedule diário, e **breakdown ao vivo de quotes por jogo** (barra horizontal, verde = postadas, cinza = restantes). A seção "Quotes por Jogo" é a forma canônica de ver a distribuição do banco.
-- **Banco de Quotes** — Busca por texto/personagem, filtro por jogo, CRUD completo, botão "Agendar" pra pinar uma quote pra próxima execução.
-- **Sincronizar** — Puxa o `state.json` do raw.githubusercontent (prod) pra ficar em sync com o bot.
-- **Backfill Twitter** — Busca seus tweets recentes e preenche `state.posted` (útil se você perdeu histórico).
-
-### REST API
-
-| Método | Path | Descrição |
-|---|---|---|
-| GET | `/api/me` | Checa sessão |
-| POST | `/api/login` | Login via `password` |
-| POST | `/api/logout` | Destroi sessão |
-| POST | `/api/sync` | Puxa `state.json` do GitHub raw |
-| GET | `/api/stats` | Totais + `byGame: [{game,total,posted,remaining}]` |
-| GET | `/api/recent?limit=N` | Últimos N posts (máx 50) |
-| GET | `/api/schedule` | Slots cron parseados em BRT/UTC |
-| POST | `/api/backfill` | Preenche state a partir do timeline do Twitter |
-| GET | `/api/pinned` | Lista IDs na fila pinada |
-| POST | `/api/quotes/:id/pin` | Adiciona à fila pinada |
-| DELETE | `/api/quotes/:id/pin` | Remove da fila pinada |
-| GET | `/api/quotes?q=&game=&limit=&offset=` | Lista paginada, busca + filtro |
-| POST | `/api/quotes` | Cria quote (id = max+1) |
-| PUT | `/api/quotes/:id` | Edita quote |
-| DELETE | `/api/quotes/:id` | Remove quote |
-
-Todas autenticadas via sessão, exceto `/api/me` e `/api/login`.
-
----
-
 ## Banco de quotes (`data/quotes.json`)
 
 **93.814 quotes**, 75+ personagens, todos os jogos principais.
 
 ### Distribuição por jogo
-
-Visível em tempo real no dashboard. Snapshot atual:
 
 | Jogo | Quotes |
 |---|---|
@@ -204,8 +153,7 @@ Maioria vem dos scrapers de dialogue files do Fandom (raw scripts), o que explic
 
 ```json
 {
-  "posted": [ { "id": 8, "tweetId": "1234567890", "postedAt": "2026-04-17T01:41:57Z" } ],
-  "pinned": [ 42, 88 ]
+  "posted": [ { "id": 8, "tweetId": "1234567890", "postedAt": "2026-04-17T01:41:57Z" } ]
 }
 ```
 
@@ -261,10 +209,7 @@ Sempre salva um relatório em `data/scrape-report-<timestamp>.json` com stats po
 | `X_API_SECRET` | — | ✅ | Twitter API secret |
 | `X_ACCESS_TOKEN` | — | ✅ | Access token (Read+Write) |
 | `X_ACCESS_TOKEN_SECRET` | — | ✅ | Access token secret |
-| `PANEL_PASSWORD` | — | ⚠️ | Senha do painel — hash bcrypt (recomendado) ou texto puro |
-| `SESSION_SECRET` | `dev-secret-change-me` | ⚠️ | Secret de sessão Express — trocar em prod |
 | `CRON_SCHEDULE` | `0 * * * *` | ❌ | Cron local (prod usa `post.yml`, ignora isto) |
-| `PORT` | `3000` | ❌ | Porta do painel |
 | `MOCK_MODE` | `false` | ❌ | `true` simula tweet sem bater na API |
 
 ---
@@ -272,20 +217,18 @@ Sempre salva um relatório em `data/scrape-report-<timestamp>.json` com stats po
 ## Gotchas
 
 - 🟢 **LIVE — push na `main` ativa o Action.** Confirme antes de pushar.
-- O bot commita `state.json` após cada post. Edite local com cuidado; use `/api/sync` antes se precisar do state mais recente.
+- O bot commita `state.json` após cada post. Se você editar local, cuidado com conflitos — faça `git pull` antes.
 - Não edite IDs em `quotes.json`. Só adicionar com `id = max+1`.
 - `scripts/populate-queue.js` e `data/scheduled.json` são legado — arquitetura atual é random pick, não fila.
 - Rodar com `MOCK_MODE=true` grava IDs `MOCK_<timestamp>` em `state.json`. **Não commite state depois de rodar mock** — a Action ia tentar achar tweets que não existem.
-- Painel tem auth session-based simples — não expor publicamente sem HTTPS + hash bcrypt.
 
 ---
 
 ## Comandos
 
 ```bash
-npm start              # scheduler + painel (start.js)
+npm start              # scheduler local
 npm run bot            # dispara 1 post — o que a Action chama em prod
-npm run panel          # só o painel
 npm run scheduler      # só o cron local
 npm run backfill       # reconstroi state.json do timeline (uso raro)
 
