@@ -2,7 +2,7 @@
 
 > *"nan-ni shimasho-ka?"*
 
-Bot no Twitter/X que posta falas aleatórias do Fallout, sem contexto, em minúsculo — como se fosse um maluco recitando de memória. Roda de graça no GitHub Actions, 15x por dia.
+[Bot no Twitter/X](https://x.com/DailyQuotesFA) que posta falas aleatórias do Fallout, sem contexto, em minúsculo — como se fosse um maluco recitando de memória. Roda de graça no GitHub Actions, 15x por dia.
 
 **Estado atual:** 🟢 **LIVE em produção** · **93.814 quotes** no banco · 15 posts/dia · cobre Fallout (algumas poucas falas) do 1, 2. Temos uma cobertura bem maior do 3, New Vegas (+ DLCs), 4 (+ Nuka-World).
 
