@@ -21,6 +21,7 @@ panel/
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # VS Code local settings (mantém tasks e launch, ignora só o local)
 .vscode/settings.json

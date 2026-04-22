@@ -256,7 +256,6 @@ O script **não modifica** `quotes.json` — só sinaliza. Correções são manu
 - 🟢 **LIVE — push na `main` ativa o Action.** Confirme antes de pushar.
 - O bot commita `state.json` após cada post. Se você editar local, cuidado com conflitos — faça `git pull` antes.
 - Não edite IDs em `quotes.json`. Só adicionar com `id = max+1`.
-- `scripts/populate-queue.js` e `data/scheduled.json` são legado — arquitetura atual é random pick, não fila.
 - Rodar com `MOCK_MODE=true` grava IDs `MOCK_<timestamp>` em `state.json`. **Não commite state depois de rodar mock** — a Action ia tentar achar tweets que não existem.
 
 ---

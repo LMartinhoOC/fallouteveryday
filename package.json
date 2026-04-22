@@ -6,7 +6,6 @@
     "start": "node start.js",
     "bot": "node src/bot.js",
     "scheduler": "node src/scheduler.js",
-    "populate": "node scripts/populate-queue.js",
     "backfill": "node scripts/backfill-state.js"
   },
   "dependencies": {
