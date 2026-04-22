@@ -4,7 +4,7 @@
 
 [Bot no Twitter/X](https://x.com/DailyQuotesFA) que posta falas aleatórias do Fallout, sem contexto, em minúsculo — como se fosse um maluco recitando de memória. Roda de graça no GitHub Actions, 15x por dia.
 
-**Estado atual:** 🟢 **LIVE em produção** · **93.814 quotes** no banco · 15 posts/dia · cobre Fallout (algumas poucas falas) do 1, 2. Temos uma cobertura bem maior do 3, New Vegas (+ DLCs), 4 (+ Nuka-World).
+**Estado atual:** 🟢 **LIVE em produção** · **93.790 quotes** no banco · 15 posts/dia · cobre Fallout (algumas poucas falas) do 1, 2. Temos uma cobertura bem maior do 3, New Vegas (+ DLCs), 4 (+ Nuka-World).
 
 ---
 
@@ -51,6 +51,7 @@ Essa é a parte mais importante da arquitetura. O mecanismo inteiro de dedup dep
 | [scripts/scrape-wikiquote.js](scripts/scrape-wikiquote.js) | Scraper Wikiquote (quotes curadas) |
 | [scripts/scrape-fandom.js](scripts/scrape-fandom.js) | Scraper Fandom por lista de personagens hardcoded |
 | [scripts/scrape-category.js](scripts/scrape-category.js) | Scraper Fandom por categoria (FO4, FONV, FO3, NUKA) — auto-descobre páginas |
+| [scripts/lint-quotes.js](scripts/lint-quotes.js) | Lint do banco — detecta stage directions, markup wiki, IDs técnicos, etc. |
 
 ---
 
@@ -120,7 +121,7 @@ Tem um `sleep 0–4s` antes de cada post pra evitar horários redondos demais.
 
 ## Banco de quotes (`data/quotes.json`)
 
-**93.814 quotes**, 75+ personagens, todos os jogos principais.
+**93.790 quotes**, 75+ personagens, todos os jogos principais.
 
 ### Distribuição por jogo
 
@@ -142,7 +143,7 @@ A Maioria vem dos scrapers de dialogue files do Fandom (raw scripts), o que expl
 
 ```json
 {
-  "_meta": { "total": 93814, "sources": [...] },
+  "_meta": { "total": 93790, "sources": [...] },
   "quotes": [
     { "id": 1, "quote": "War. War never changes.", "character": "Narrator (Ron Perlman)", "game": "Fallout" }
   ]
@@ -201,6 +202,42 @@ Sempre salva um relatório em `data/scrape-report-<timestamp>.json` com stats po
 
 ---
 
+## Lint & curadoria (`scripts/lint-quotes.js`)
+
+Os scrapers pegam tudo que parece fala — o que inclui muito lixo: stage directions (`[Crying]`, `*sighs*`), markup wiki vazado (`[[Link]]`, `{{template}}`, pipes), placeholders (`<PlayerName>`), identificadores técnicos do jogo, etc. O lint percorre [data/quotes.json](data/quotes.json) e sinaliza tudo isso via regras nomeadas.
+
+```bash
+node scripts/lint-quotes.js                    # resumo + 10 exemplos por regra
+node scripts/lint-quotes.js --all              # todos os matches
+node scripts/lint-quotes.js --rule bracket-tag # só uma regra
+node scripts/lint-quotes.js --out report.json  # JSON completo
+node scripts/lint-quotes.js --ids              # só IDs, um por linha (pra pipe)
+```
+
+O script **não modifica** `quotes.json` — só sinaliza. Correções são manuais (editar ou deletar a quote, já respeitando a regra de IDs estáveis: deletar é OK, renumerar não).
+
+### Regras atuais
+
+| Regra | O que detecta | Severidade |
+|---|---|---|
+| `skill-check` | Marcadores tipo `[SUCCEEDED]`, `[Speech 75]` | alta |
+| `bracket-tag` | Tag entre colchetes — `[Crying]`, `[Whispers]` | alta |
+| `curly-stage` | Tag entre chaves — `{angry}`, `{laughs}` | alta |
+| `asterisk-action` | Ação entre asteriscos — `*sighs*`, `*looks away*` | alta |
+| `angle-placeholder` | Placeholder em `<>` — `<PlayerName>`, `<Alias:Foo>` | alta |
+| `wiki-link`, `wiki-template`, `wiki-bold-italic` | Markup MediaWiki vazado — `[[X]]`, `{{Y}}`, `''z''` | alta/média |
+| `html-entity` | Entidade HTML não decodificada — `&quot;`, `&#39;` | média |
+| `pipe-or-tab` | Pipe ou tab (leak de wikitext) | alta |
+| `paren-stage` | Parênteses com palavra minúscula — `(laughs)`, `(whispering)` | média |
+| `speaker-label` | Prefixo `Nome:` no começo | baixa |
+| `all-caps`, `too-short`, `too-long` | Heurísticas básicas | baixa/média |
+| `non-printable` | Caractere de controle | alta |
+| `story-event-id` | ID técnico vazado — `VStoryEventXxx set to N.` | alta |
+
+> **Nota:** API programática também é exportada (`runLint`, `findingsForRule`, `autoFix`, `RULES`, `FIXERS`) pra uso em tooling externo.
+
+---
+
 ## Variáveis de ambiente
 
 | Variável | Padrão | Obrig. | Descrição |
@@ -235,6 +272,8 @@ npm run backfill       # reconstroi state.json do timeline (uso raro)
 node scripts/scrape-wikiquote.js [--merge] [jogo]
 node scripts/scrape-fandom.js    [--merge] [personagem]
 node scripts/scrape-category.js  [--merge] [--game KEY] [--limit N] [--list]
+
+node scripts/lint-quotes.js      [--all] [--rule NAME] [--out FILE] [--ids]
 ```
 
 ---
