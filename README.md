@@ -2,26 +2,29 @@
 
 > *"nan-ni shimasho-ka?"*
 
-[Bot no Twitter/X](https://x.com/DailyQuotesFA) que posta falas aleatórias do Fallout, sem contexto, em minúsculo — como se fosse um maluco recitando de memória. Roda de graça no GitHub Actions, 15x por dia.
+[Bot no Twitter/X](https://x.com/DailyQuotesFA) que posta falas aleatórias do Fallout, sem contexto, em minúsculo — como se fosse um maluco recitando de memória. Roda de graça no GitHub Actions, 5x por dia. Cada post vira um mini-thread: 1.5–4min depois do tweet original, o bot replyeia com o nome do personagem (`mr house`, `liberty prime`, `nate`) — o reveal organic.
 
-**Estado atual:** 🟢 **LIVE em produção** · **93.790 quotes** no banco · 15 posts/dia · cobre Fallout (algumas poucas falas) do 1, 2. Temos uma cobertura bem maior do 3, New Vegas (+ DLCs), 4 (+ Nuka-World).
+**Estado atual:** 🟢 **LIVE em produção** · **93.790 quotes** no banco · 5 posts/dia (cada um com reveal em thread) · cobre Fallout (algumas poucas falas) do 1, 2. Temos uma cobertura bem maior do 3, New Vegas (+ DLCs), 4 (+ Nuka-World).
 
 ---
 
 ## Como funciona
 
-O bot sorteia uma fala aleatória do banco que ainda não foi postada, converte pra minúsculo, e posta. Nada de fila curada obrigatória, nada de agendamento manual — puro caos controlado.
+O bot sorteia uma fala aleatória do banco que ainda não foi postada, converte pra minúsculo, e posta. Em seguida espera 90–240s e responde ao próprio tweet com o nome do personagem (também em minúsculo, sem ornamentos) — cria thread, gera curiosidade, e o algoritmo do X conta isso como conversation. Nada de fila curada obrigatória, nada de agendamento manual — puro caos controlado.
 
 ```
 data/quotes.json  ──┐
  (banco master)     ├──►  src/bot.js  ──►  Twitter/X API
-data/state.json  ───┘         │
- (log de posts)               ▼
-                    state.posted.push({id, tweetId, postedAt})
-                              │
-                              ▼
+data/state.json  ───┘    runCycle()        │
+ (log de posts)              │              ├─ tweet (quote em minúsculo)
+                             ▼              └─ reply 90-240s depois (nome do char)
+                state.posted.push({id, tweetId, revealId, postedAt})
+                             │
+                             ▼
                    git commit data/state.json    (GitHub Action)
 ```
+
+Se o reveal falhar (rate limit, erro de rede), o post original e o `state.json` continuam consistentes — `revealId` simplesmente fica ausente naquela entrada.
 
 ### Garantia de não-repetição
 
@@ -42,8 +45,8 @@ Essa é a parte mais importante da arquitetura. O mecanismo inteiro de dedup dep
 
 | Módulo | Função |
 |--------|--------|
-| [src/bot.js](src/bot.js) | Núcleo: `postNext()` — lê quotes+state, sorteia não-postada, posta, grava state |
-| [src/scheduler.js](src/scheduler.js) | Wraps `postNext()` em `node-cron` job (uso local apenas) |
+| [src/bot.js](src/bot.js) | Núcleo: `postNext()` posta a quote, `postReveal()` faz o reply com o personagem, `runCycle()` orquestra os dois com delay |
+| [src/scheduler.js](src/scheduler.js) | Wraps `runCycle()` em `node-cron` job (uso local apenas) |
 | [start.js](start.js) | Entry do `npm start` — sobe o scheduler local |
 | [data/quotes.json](data/quotes.json) | Banco master (93.8k quotes). **Imutável em prod.** |
 | [data/state.json](data/state.json) | Log de posts: `{posted: [...]}` |
@@ -94,15 +97,17 @@ Dev sem postar de verdade: `MOCK_MODE=true` no `.env` — simula tweet retornand
 
 O jeito mais simples de rodar sem servidor é via GitHub Actions. O workflow já está em [.github/workflows/post.yml](.github/workflows/post.yml).
 
-Roda **15x por dia** distribuído entre 8h BRT e 22h BRT, pra cobrir horário nobre do Brasil, EUA e Europa:
+Roda **5x por dia** em janelas concentradas no prime time US/global (audiência maior pra conteúdo Fallout em inglês). Os minutos do cron são propositalmente "estranhos" e há um jitter `0–60s` antes de postar, pra fugir da assinatura visual de bot (`:00:00`) que o Grok detecta:
 
-| UTC | BRT | EST | CET |
-|-----|-----|-----|-----|
-| 11:00–20:00 (de hora em hora) | 8h–17h | 6h–15h | 12h–21h |
-| 21:00, 22:00, 23:00 | 18h, 19h, 20h | 16h, 17h, 18h | 22h, 23h, 0h |
-| 00:00, 01:00 | 21h, 22h | 19h, 20h | — |
+| UTC | EST | BRT | Janela |
+|-----|-----|-----|--------|
+| `13:07` | 09:07 | 10:07 | manhã US, almoço Europa |
+| `15:23` | 11:23 | 12:23 | almoço US |
+| `19:41` | 15:41 | 16:41 | fim de expediente US, início prime BR |
+| `22:12` | 18:12 | 19:12 | prime time US |
+| `00:38` | 20:38 | 21:38 | late US |
 
-Tem um `sleep 0–4s` antes de cada post pra evitar horários redondos demais.
+Cada execução faz um ciclo completo: jitter → post → sleep 90–240s → reply (reveal). Tempo total de ~2–6min por run.
 
 ### Configurar
 
@@ -154,9 +159,18 @@ A Maioria vem dos scrapers de dialogue files do Fandom (raw scripts), o que expl
 
 ```json
 {
-  "posted": [ { "id": 8, "tweetId": "1234567890", "postedAt": "2026-04-17T01:41:57Z" } ]
+  "posted": [
+    {
+      "id": 8,
+      "tweetId": "1234567890",
+      "revealId": "1234567891",
+      "postedAt": "2026-04-17T01:41:57Z"
+    }
+  ]
 }
 ```
+
+`revealId` é o ID do reply de revelação. Pode estar ausente se o reveal falhou (post original ainda é válido) ou se a quote não tinha `character` válido.
 
 ---
 
