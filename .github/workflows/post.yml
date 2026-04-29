@@ -2,24 +2,12 @@ name: Post Fallout Quote
 
 on:
   schedule:
-    # Overlap Brasil manhã + Europa almoço/tarde
-    - cron: '0 11 * * *'   # 8h BRT / 6h EST / 12h CET
-    - cron: '0 12 * * *'   # 9h BRT / 7h EST / 13h CET
-    - cron: '0 13 * * *'   # 10h BRT / 8h EST / 14h CET
-    - cron: '0 14 * * *'   # 11h BRT / 9h EST / 15h CET
-    - cron: '0 15 * * *'   # 12h BRT / 10h EST / 16h CET
-    - cron: '0 16 * * *'   # 13h BRT / 11h EST / 17h CET
-    # US almoço + Brasil tarde + fim de tarde Europa
-    - cron: '0 17 * * *'   # 14h BRT / 12h EST / 18h CET
-    - cron: '0 18 * * *'   # 15h BRT / 13h EST / 19h CET
-    - cron: '0 19 * * *'   # 16h BRT / 14h EST / 20h CET
-    - cron: '0 20 * * *'   # 17h BRT / 15h EST / 21h CET
-    # US tarde/noite + Brasil noite (prime time dos dois)
-    - cron: '0 21 * * *'   # 18h BRT / 16h EST / 22h CET
-    - cron: '0 22 * * *'   # 19h BRT / 17h EST / 23h CET
-    - cron: '0 23 * * *'   # 20h BRT / 18h EST / 0h CET
-    - cron: '0 0 * * *'    # 21h BRT / 19h EST
-    - cron: '0 1 * * *'    # 22h BRT / 20h EST
+    # 5 runs/dia em janelas US/global. Minutos randomizados pra fugir do :00 (assinatura de bot).
+    - cron: '7 13 * * *'    # 09:07 ET / 10:07 BRT — manhã US, abrange Europa
+    - cron: '23 15 * * *'   # 11:23 ET / 12:23 BRT — almoço US
+    - cron: '41 19 * * *'   # 15:41 ET / 16:41 BRT — fim expediente US, prime BR
+    - cron: '12 22 * * *'   # 18:12 ET / 19:12 BRT — prime US
+    - cron: '38 0 * * *'    # 20:38 ET / 21:38 BRT — late US
   workflow_dispatch:        # permite rodar manualmente pelo painel do GitHub
 
 jobs:
@@ -41,10 +29,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Random delay within window
-        run: sleep $((RANDOM % 5))     # dorme 0–4 segundos antes de postar
+      - name: Random jitter (0-60s)
+        run: sleep $((RANDOM % 61))   # afasta o post do horário do cron (minutos do cron já são randomizados)
 
-      - name: Post quote
+      - name: Post quote (com reveal em thread)
         env:
           X_API_KEY:            ${{ secrets.X_API_KEY }}
           X_API_SECRET:         ${{ secrets.X_API_SECRET }}
