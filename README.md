@@ -2,29 +2,27 @@
 
 > *"nan-ni shimasho-ka?"*
 
-[Bot no Twitter/X](https://x.com/DailyQuotesFA) que posta falas aleatórias do Fallout, sem contexto, em minúsculo — como se fosse um maluco recitando de memória. Roda de graça no GitHub Actions, 5x por dia. Cada post vira um mini-thread: 1.5–4min depois do tweet original, o bot replyeia com o nome do personagem (`mr house`, `liberty prime`, `nate`) — o reveal organic.
+[Bot no Twitter/X](https://x.com/DailyQuotesFA) que posta falas aleatórias do Fallout, sem contexto, em minúsculo — como se fosse um maluco recitando de memória. Roda de graça no GitHub Actions, 5x por dia.
 
-**Estado atual:** 🟢 **LIVE em produção** · **93.790 quotes** no banco · 5 posts/dia (cada um com reveal em thread) · cobre Fallout (algumas poucas falas) do 1, 2. Temos uma cobertura bem maior do 3, New Vegas (+ DLCs), 4 (+ Nuka-World).
+**Estado atual:** 🟢 **LIVE em produção** · **93.790 quotes** no banco · 5 posts/dia · cobre Fallout (algumas poucas falas) do 1, 2. Temos uma cobertura bem maior do 3, New Vegas (+ DLCs), 4 (+ Nuka-World).
 
 ---
 
 ## Como funciona
 
-O bot sorteia uma fala aleatória do banco que ainda não foi postada, converte pra minúsculo, e posta. Em seguida espera 90–240s e responde ao próprio tweet com o nome do personagem (também em minúsculo, sem ornamentos) — cria thread, gera curiosidade, e o algoritmo do X conta isso como conversation. Nada de fila curada obrigatória, nada de agendamento manual — puro caos controlado.
+O bot sorteia uma fala aleatória do banco que ainda não foi postada, converte pra minúsculo, e posta. Nada de fila curada obrigatória, nada de agendamento manual — puro caos controlado.
 
 ```
 data/quotes.json  ──┐
  (banco master)     ├──►  src/bot.js  ──►  Twitter/X API
-data/state.json  ───┘    runCycle()        │
- (log de posts)              │              ├─ tweet (quote em minúsculo)
-                             ▼              └─ reply 90-240s depois (nome do char)
-                state.posted.push({id, tweetId, revealId, postedAt})
+data/state.json  ───┘    postNext()         │
+ (log de posts)              │              └─ tweet (quote em minúsculo)
+                             ▼
+                state.posted.push({id, tweetId, postedAt})
                              │
                              ▼
                    git commit data/state.json    (GitHub Action)
 ```
-
-Se o reveal falhar (rate limit, erro de rede), o post original e o `state.json` continuam consistentes — `revealId` simplesmente fica ausente naquela entrada.
 
 ### Garantia de não-repetição
 
@@ -45,12 +43,12 @@ Essa é a parte mais importante da arquitetura. O mecanismo inteiro de dedup dep
 
 | Módulo | Função |
 |--------|--------|
-| [src/bot.js](src/bot.js) | Núcleo: `postNext()` posta a quote, `postReveal()` faz o reply com o personagem, `runCycle()` orquestra os dois com delay |
-| [src/scheduler.js](src/scheduler.js) | Wraps `runCycle()` em `node-cron` job (uso local apenas) |
+| [src/bot.js](src/bot.js) | Núcleo: `postNext()` sorteia uma quote não-postada, posta em minúsculo e atualiza `state.posted` |
+| [src/scheduler.js](src/scheduler.js) | Wraps `postNext()` em `node-cron` job (uso local apenas) |
 | [start.js](start.js) | Entry do `npm start` — sobe o scheduler local |
 | [data/quotes.json](data/quotes.json) | Banco master (93.8k quotes). **Imutável em prod.** |
-| [data/state.json](data/state.json) | Log de posts: `{posted: [...]}` |
-| [.github/workflows/post.yml](.github/workflows/post.yml) | GitHub Action — 15 crons/dia + commit de state.json |
+| [data/state.json](data/state.json) | Log de posts: `{posted: [...], pinned?: [...]}` |
+| [.github/workflows/post.yml](.github/workflows/post.yml) | GitHub Action — 5 crons/dia + commit de state.json |
 | [scripts/scrape-wikiquote.js](scripts/scrape-wikiquote.js) | Scraper Wikiquote (quotes curadas) |
 | [scripts/scrape-fandom.js](scripts/scrape-fandom.js) | Scraper Fandom por lista de personagens hardcoded |
 | [scripts/scrape-category.js](scripts/scrape-category.js) | Scraper Fandom por categoria (FO4, FONV, FO3, NUKA) — auto-descobre páginas |
@@ -107,7 +105,7 @@ Roda **5x por dia** em janelas concentradas no prime time US/global (audiência 
 | `22:12` | 18:12 | 19:12 | prime time US |
 | `00:38` | 20:38 | 21:38 | late US |
 
-Cada execução faz um ciclo completo: jitter → post → sleep 90–240s → reply (reveal). Tempo total de ~2–6min por run.
+Cada execução faz: jitter 0–60s → post. Tempo total de poucos segundos por run.
 
 ### Configurar
 
@@ -126,19 +124,19 @@ Cada execução faz um ciclo completo: jitter → post → sleep 90–240s → r
 
 ## Banco de quotes (`data/quotes.json`)
 
-**93.790 quotes**, 75+ personagens, todos os jogos principais.
+**93.790 quotes**, 1.355 personagens únicos, todos os jogos principais.
 
 ### Distribuição por jogo
 
 | Jogo | Quotes |
 |---|---|
 | Fallout 4 | 54.369 |
-| Fallout: New Vegas | 19.822 |
+| Fallout: New Vegas | 19.798 |
 | Fallout 3 | 19.598 |
 | Fallout 2 | 7 |
 | Fallout: New Vegas — Honest Hearts | 6 |
-| Fallout TV Series (2024) | 5 |
-| Fallout (1) | 3 |
+| Fallout (TV Series, 2024) | 5 |
+| Fallout | 3 |
 | Fallout: New Vegas — Lonesome Road | 3 |
 | Fallout: New Vegas — Dead Money | 1 |
 
@@ -163,14 +161,24 @@ A Maioria vem dos scrapers de dialogue files do Fandom (raw scripts), o que expl
     {
       "id": 8,
       "tweetId": "1234567890",
-      "revealId": "1234567891",
       "postedAt": "2026-04-17T01:41:57Z"
     }
   ]
 }
 ```
 
-`revealId` é o ID do reply de revelação. Pode estar ausente se o reveal falhou (post original ainda é válido) ou se a quote não tinha `character` válido.
+> Entradas antigas podem ter um campo `revealId` — vestígio do reveal-em-thread (descontinuado em 2026-05-01). Histórico preservado, sem migração.
+
+#### Fila de pinned (opcional)
+
+Se `state.json` tiver um campo `pinned: [id1, id2, ...]`, o bot consome essa fila **antes** de sortear aleatório. Útil pra agendar uma quote específica pro próximo post (ex: anúncio de série, data temática). Cada run remove o primeiro ID da fila. Quando a fila esvazia, volta ao sorteio normal.
+
+```json
+{
+  "pinned": [42, 1337],
+  "posted": [...]
+}
+```
 
 ---
 

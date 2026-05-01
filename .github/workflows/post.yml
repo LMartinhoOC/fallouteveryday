@@ -32,7 +32,7 @@ jobs:
       - name: Random jitter (0-60s)
         run: sleep $((RANDOM % 61))   # afasta o post do horário do cron (minutos do cron já são randomizados)
 
-      - name: Post quote (com reveal em thread)
+      - name: Post quote
         env:
           X_API_KEY:            ${{ secrets.X_API_KEY }}
           X_API_SECRET:         ${{ secrets.X_API_SECRET }}

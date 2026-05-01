@@ -6,9 +6,6 @@ const QUOTES_FILE = path.join(__dirname, '../data/quotes.json');
 const STATE_FILE  = path.join(__dirname, '../data/state.json');
 const MOCK_MODE   = process.env.MOCK_MODE === 'true';
 
-const REVEAL_DELAY_MIN_MS = 90_000;   // 1.5min
-const REVEAL_DELAY_MAX_MS = 240_000;  // 4min
-
 function getClient() {
   const { TwitterApi } = require('twitter-api-v2');
   return new TwitterApi({
@@ -17,14 +14,6 @@ function getClient() {
     accessToken:  process.env.X_ACCESS_TOKEN,
     accessSecret: process.env.X_ACCESS_TOKEN_SECRET,
   });
-}
-
-// "Narrator (Ron Perlman)" -> "narrator"; "MacCready (kid)" -> "maccready"
-// Returns null if name é vazio ou só whitespace após cleanup.
-function sanitizeCharacter(name) {
-  if (!name) return null;
-  const cleaned = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
-  return cleaned ? cleaned.toLowerCase() : null;
 }
 
 function readState() {
@@ -81,61 +70,10 @@ async function postNext() {
   return { tweetId, entry };
 }
 
-async function postReveal(parentTweetId, entry) {
-  const character = sanitizeCharacter(entry.character);
-  if (!character) {
-    console.log('[bot] reveal pulado (character vazio após sanitize)');
-    return null;
-  }
-
-  console.log(`[bot] ${MOCK_MODE ? '[MOCK] ' : ''}Reveal: "${character}"`);
-
-  let revealId;
-  if (MOCK_MODE) {
-    await new Promise(r => setTimeout(r, 300));
-    revealId = `MOCK_REVEAL_${Date.now()}`;
-    console.log(`[bot] [MOCK] Reveal simulado! ID: ${revealId}`);
-  } else {
-    const rwClient = getClient().readWrite;
-    const result   = await rwClient.v2.reply(character, parentTweetId);
-    revealId = result.data.id;
-    console.log(`[bot] Reveal publicado! ID: ${revealId}`);
-  }
-
-  // Atualiza última entry do state com revealId
-  const state = readState();
-  const last  = state.posted[state.posted.length - 1];
-  if (last && last.tweetId === parentTweetId) {
-    last.revealId = revealId;
-    writeState(state);
-  }
-
-  return revealId;
-}
-
-async function runCycle() {
-  const { tweetId, entry } = await postNext();
-
-  // No MOCK_MODE pulamos o sleep longo pra agilizar dev
-  const delayMs = MOCK_MODE
-    ? 500
-    : REVEAL_DELAY_MIN_MS + Math.floor(Math.random() * (REVEAL_DELAY_MAX_MS - REVEAL_DELAY_MIN_MS));
-
-  console.log(`[bot] aguardando ${Math.round(delayMs / 1000)}s antes do reveal...`);
-  await new Promise(r => setTimeout(r, delayMs));
-
-  try {
-    await postReveal(tweetId, entry);
-  } catch (err) {
-    // Best-effort: post original já tá no ar e gravado em state. Reveal falhar não é fatal.
-    console.error('[bot] reveal falhou (post original ok):', err.message);
-  }
-}
-
-module.exports = { postNext, postReveal, runCycle, sanitizeCharacter };
+module.exports = { postNext };
 
 if (require.main === module) {
-  runCycle().catch(err => {
+  postNext().catch(err => {
     console.error('[bot] erro fatal:', err.message);
     process.exit(1);
   });
