@@ -32,12 +32,13 @@ jobs:
       - name: Random jitter (0-60s)
         run: sleep $((RANDOM % 61))   # afasta o post do horário do cron (minutos do cron já são randomizados)
 
-      - name: Post quote
+      - name: Post quote (and like round)
         env:
           X_API_KEY:            ${{ secrets.X_API_KEY }}
           X_API_SECRET:         ${{ secrets.X_API_SECRET }}
           X_ACCESS_TOKEN:       ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          X_USER_ID:            ${{ secrets.X_USER_ID }}
         run: npm run bot
 
       - name: Commit updated state.json
