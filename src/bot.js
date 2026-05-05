@@ -73,19 +73,8 @@ async function postNext() {
 module.exports = { postNext };
 
 if (require.main === module) {
-  (async () => {
-    try {
-      await postNext();
-    } catch (err) {
-      console.error('[bot] erro fatal:', err.message);
-      process.exit(1);
-    }
-
-    try {
-      const { likeRound } = require('./like');
-      await likeRound();
-    } catch (err) {
-      console.error('[bot] erro no like round (não-fatal):', err.message);
-    }
-  })();
+  postNext().catch(err => {
+    console.error('[bot] erro fatal:', err.message);
+    process.exit(1);
+  });
 }
