@@ -1,14 +1,13 @@
 name: Post Fallout Quote
 
 on:
-  # PAUSADO em 2026-05-27 — conta @ suspensa temporariamente no X. Reativar descomentando os crons.
-  # schedule:
-  #   # 5 runs/dia em janelas US/global. Minutos randomizados pra fugir do :00 (assinatura de bot).
-  #   - cron: '7 13 * * *'    # 09:07 ET / 10:07 BRT — manhã US, abrange Europa
-  #   - cron: '23 15 * * *'   # 11:23 ET / 12:23 BRT — almoço US
-  #   - cron: '41 19 * * *'   # 15:41 ET / 16:41 BRT — fim expediente US, prime BR
-  #   - cron: '12 22 * * *'   # 18:12 ET / 19:12 BRT — prime US
-  #   - cron: '38 0 * * *'    # 20:38 ET / 21:38 BRT — late US
+  schedule:
+    # 5 runs/dia em janelas US/global. Minutos randomizados pra fugir do :00 (assinatura de bot).
+    - cron: '7 13 * * *'    # 09:07 ET / 10:07 BRT — manhã US, abrange Europa
+    - cron: '23 15 * * *'   # 11:23 ET / 12:23 BRT — almoço US
+    - cron: '41 19 * * *'   # 15:41 ET / 16:41 BRT — fim expediente US, prime BR
+    - cron: '12 22 * * *'   # 18:12 ET / 19:12 BRT — prime US
+    - cron: '38 0 * * *'    # 20:38 ET / 21:38 BRT — late US
   workflow_dispatch:        # permite rodar manualmente pelo painel do GitHub
 
 jobs:
