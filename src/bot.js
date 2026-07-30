@@ -24,6 +24,27 @@ function writeState(state) {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
+// 402/429/5xx costumam ser falhas transitórias do lado da X API — vale retry.
+// 4xx de auth/validação (401/403/400) não se resolvem tentando de novo.
+const RETRYABLE_CODES = [402, 429, 500, 502, 503, 504];
+const RETRY_BACKOFF_MS = [4000, 10000];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function tweetWithRetry(rwClient, text) {
+  const attempts = RETRY_BACKOFF_MS.length + 1;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await rwClient.v2.tweet({ text });
+    } catch (err) {
+      const isLast = i === attempts - 1;
+      if (!RETRYABLE_CODES.includes(err.code) || isLast) throw err;
+      const wait = RETRY_BACKOFF_MS[i];
+      console.warn(`[bot] tweet falhou (HTTP ${err.code}) — retry ${i + 1}/${attempts - 1} em ${wait / 1000}s...`);
+      await sleep(wait);
+    }
+  }
+}
+
 async function postNext() {
   const data  = JSON.parse(fs.readFileSync(QUOTES_FILE, 'utf8'));
   const state = readState();
@@ -59,7 +80,7 @@ async function postNext() {
     console.log(`[bot] [MOCK] Conteúdo:\n${tweet}`);
   } else {
     const rwClient = getClient().readWrite;
-    const result   = await rwClient.v2.tweet({ text: tweet });
+    const result   = await tweetWithRetry(rwClient, tweet);
     tweetId = result.data.id;
     console.log(`[bot] Tweet publicado! ID: ${tweetId}`);
   }
@@ -74,7 +95,8 @@ module.exports = { postNext };
 
 if (require.main === module) {
   postNext().catch(err => {
-    console.error('[bot] erro fatal:', err.message);
+    const detail = err.code ? ` [HTTP ${err.code}] ${JSON.stringify(err.data)}` : '';
+    console.error(`::error::[bot] erro fatal: ${err.message}${detail}`);
     process.exit(1);
   });
 }
