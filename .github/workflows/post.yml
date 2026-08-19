@@ -33,6 +33,12 @@ jobs:
         run: sleep $((RANDOM % 61))   # afasta o post do horário do cron (minutos do cron já são randomizados)
 
       - name: Post quote (and like round)
+        # continue-on-error: quando o crédito da X API acabar de vez, este step vai
+        # começar a falhar (402/403) em toda run — sem isso, cada falha manda email de
+        # "workflow failed". Com isso a run fecha "verde" mesmo com o post falhando, e
+        # o step seguinte (commit) já lida com "nada mudou" sem erro. Projeto em fase de
+        # esvaziamento (2026-08-19) — deixar rodando sem alarme até morrer sozinho.
+        continue-on-error: true
         env:
           X_API_KEY:            ${{ secrets.X_API_KEY }}
           X_API_SECRET:         ${{ secrets.X_API_SECRET }}
